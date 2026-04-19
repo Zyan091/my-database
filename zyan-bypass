@@ -1,0 +1,65 @@
+import requests
+import sys
+import uuid
+import os
+
+# --- ADMIN SECTION ---
+# သင့် Raw Link ကို ထည့်ထားပါပြီ
+KEY_URL = "https://raw.githubusercontent.com/Zyan091/my-database/refs/heads/main/key.txt"
+
+def get_hwid():
+    # HWID ကို ဖုန်းထဲမှာ သိမ်းထားမယ့် ဖိုင်လမ်းကြောင်း
+    id_file = os.path.expanduser("~/.zyan_hwid")
+    
+    # အကယ်၍ ဖိုင်ရှိရင် အဲဒီထဲက ID ကိုပဲ ပြန်ဖတ်မယ် (ဒါမှ ID မပြောင်းမှာ)
+    if os.path.exists(id_file):
+        with open(id_file, "r") as f:
+            return f.read().strip()
+    
+    # အကယ်၍ ID မရှိသေးရင် အသစ်ထုတ်ပြီး ဖိုင်ထဲ သိမ်းမယ်
+    new_id = f"ZYAN-{str(uuid.uuid4()).split('-')[0].upper()}"
+    with open(id_file, "w") as f:
+        f.write(new_id)
+    return new_id
+
+def check_key():
+    my_hwid = get_hwid()
+    print("====================================")
+    print("      ZYAN BYPASS - PREMIUM TOOL    ")
+    print(f"    YOUR DEVICE ID: {my_hwid}")
+    print("====================================")
+    
+    user_key = input("[?] Enter Your Key: ").strip()
+    
+    try:
+        response = requests.get(KEY_URL, timeout=10)
+        # Key စာရင်းကို စစ်ဆေးခြင်း (Key|HWID ပုံစံဖြစ်ရမည်)
+        for line in response.text.splitlines():
+            if "|" in line:
+                key, hwid = line.split("|")
+                if user_key == key.strip() and hwid.strip() == my_hwid:
+                    print("\n[+] Key Authorized! Access Granted.")
+                    return True
+        
+        print("\n[!] Key Invalid or Already Used on Another Device!")
+        return False
+    except Exception as e:
+        print(f"\n[!] Connection Error: {e}")
+        return False
+
+def start_bypass():
+    print("\n[*] Initializing... Successfully Connected!")
+    print("[*] Engine Status: ZYAN TURBO ACTIVE")
+    # ဒီနေရာမှာ သင်ထည့်ချင်တဲ့ Bypass Logic တွေကို ဆက်ရေးပါ
+    try:
+        while True:
+            pass
+    except KeyboardInterrupt:
+        print("\n[!] Closing ZYAN Bypass...")
+        sys.exit()
+
+if name == "main":
+    if check_key():
+        start_bypass()
+    else:
+        sys.exit()
