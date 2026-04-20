@@ -39,10 +39,8 @@ stop_event = threading.Event()
 
 BANNER = """
 [bold #00FF00]
- ╔╦╗╦ ╦╔═╗╔╗╔╔╦╗╔═╗╦═╗  ╦ ╦╔═╗╔═╗╦╔═╔═╗╦═╗
- ║║║╚╦╝╠═╣║║║║║║╠═╣╠╦╝  ╠═╣╠═╣║  ╠╩╗║╣ ╠╦╝
- ╩ ╩ ╩ ╩ ╩╝╚╚╩ ╩╩ ╩╩╚═  ╩ ╩╩ ╩╚═╝╩ ╩╚═╝╩╚═
-         [#00FF00]M Y A N M A R   H A C K E R[/#00FF00]
+ZYAN HACKER
+[#00FF00]M Y A N M A R   H A C K E R[/#00FF00]
 [/bold #00FF00]
 """
 
@@ -192,8 +190,8 @@ def start_bypass_process():
 # ===============================
 # MAIN
 # ===============================
-if__name == "__main__":
-    try:
+if __name__ == "__main__":
+try:
         if check_license():
             with console.status("[bold green]Injecting Packets...", spinner="shark"):
                 time.sleep(2)
