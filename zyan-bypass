@@ -7,10 +7,14 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.align import Align
 
+# SSL Warning များကို ပိတ်ထားရန် (Screenshot ထဲက Error အတွက်)
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 # Console Setup
 console = Console()
 
-# Colors (သေချာအောင် ပြန်စစ်ထားပါတယ်)
+# Colors (စာလုံးပေါင်း မှန်ကန်စွာ သတ်မှတ်ထားသည်)
 RED = "\033[1;31m"
 GREEN = "\033[1;32m"
 YELLOW = "\033[1;33m"
@@ -29,17 +33,14 @@ def display_hacker_flag():
     console.print(Align.center(banner))
     console.print(Align.center(f"{YELLOW}--- [ ALADDIN BYPASS PREMIUM ] ---{RESET}"))
 
-# ===============================
-# CORE LOGIC FUNCTIONS
-# ===============================
 def check_license():
-    # အစ်ကို့ရဲ့ GitHub Link အမှန်ကို သုံးထားပါတယ်
+    # အစ်ကို့ GitHub ရဲ့ Raw Link အမှန်
     KEY_URL = "https://raw.githubusercontent.com/Zyan091/my-database/refs/heads/main/key.txt"
     console.clear()
     display_hacker_flag()
 
     try:
-        # Error တက်စေတဲ့ CY4N ကို CYAN လို့ ပြင်ထားပါတယ်
+        # CY4N အမှားကို CYAN လို့ ပြင်ဆင်ထားပါတယ်
         console.print(Panel(Align.center(f"{CYAN}AWAITING AUTHORIZATION KEY{RESET}"), border_style="bold cyan"))
         user_key = console.input(f"\n{YELLOW} [SECURITY_ACCESS] @ ENTER KEY: {RESET}").strip()
         
@@ -47,11 +48,12 @@ def check_license():
             console.print(f"\n{RED}[!] ERROR: NULL KEY PROVIDED")
             sys.exit()
 
-        with console.status("[bold green]Checking Database...", spinner="dots"):
-            response = requests.get(KEY_URL, timeout=10)
+        with console.status("[bold green]Connecting to Server...", spinner="dots"):
+            # SSL Error မတက်အောင် verify=False ထည့်ထားပါတယ်
+            response = requests.get(KEY_URL, timeout=10, verify=False)
             
         if response.status_code != 200:
-            console.print(f"\n{RED}[!] SERVER ERROR: Status {response.status_code}")
+            console.print(f"\n{RED}[!] SERVER ERROR: Could not connect.")
             return False
             
         lines = response.text.splitlines()
@@ -60,7 +62,7 @@ def check_license():
             line = line.strip()
             if not line: continue
             
-            # ရက်စွဲပါသော Key စစ်ဆေးခြင်း
+            # Key:Expiry ပုံစံကို စစ်ဆေးခြင်း
             if ":" in line:
                 try:
                     stored_key, expiry_str = line.split(":")
@@ -76,14 +78,13 @@ def check_license():
                             time.sleep(1.5)
                             return True
                         else:
-                            console.print(f"\n{RED}[X] ACCESS DENIED: KEY EXPIRED ON {expiry_str}{RESET}")
+                            console.print(f"\n{RED}[X] ACCESS DENIED: KEY EXPIRED!{RESET}")
                             sys.exit()
-                except ValueError:
-                    continue 
-            # ရက်စွဲမပါသော Lifetime Key စစ်ဆေးခြင်း
+                except ValueError: continue 
             else:
+                # Lifetime Key များအတွက်
                 if user_key == line:
-                    console.print(f"\n{GREEN}[✓] ACCESS GRANTED! (LIFETIME PREMIUM){RESET}")
+                    console.print(f"\n{GREEN}[✓] ACCESS GRANTED! (LIFETIME){RESET}")
                     time.sleep(1.5)
                     return True
                     
@@ -91,7 +92,7 @@ def check_license():
         sys.exit()
 
     except Exception as e:
-        console.print(f"\n{RED}[!] UNEXPECTED ERROR: {e}")
+        console.print(f"\n{RED}[!] ERROR: {e}")
         sys.exit()
 
 def start_bypass_process():
@@ -102,7 +103,7 @@ def start_bypass_process():
     console.print(f"{YELLOW}[!] Turbo Engine Activated.{RESET}")
 
 # ===============================
-# MAIN RUNNER
+# MAIN RUNNER (Underline __ များ မကျန်စေရန် သေချာရေးထားပါသည်)
 # ===============================
 if __name__ == "__main__":
     try:
@@ -117,6 +118,11 @@ if __name__ == "__main__":
             ))
             start_bypass_process()
             
+            # Tool ပြီးသွားရင် ပိတ်မသွားအောင် ဤနေရာတွင် ရပ်ထားပါမည်
+            console.print(f"\n{YELLOW}[!] Tool is running. Press CTRL+C to stop.{RESET}")
+            while True:
+                time.sleep(100)
+                
     except KeyboardInterrupt:
-        print(f"\n{RED}Cancelled by user.{RESET}")
-        sys.exit()
+        print(f"\n{RED}Operation Cancelled. Exiting...{RESET}")
+        sys.exit()   
