@@ -192,7 +192,7 @@ def start_bypass_process():
 # ===============================
 # MAIN
 # ===============================
-if name == "main":
+if__name == "__main__":
     try:
         if check_license():
             with console.status("[bold green]Injecting Packets...", spinner="shark"):
