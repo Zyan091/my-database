@@ -191,7 +191,7 @@ def start_bypass_process():
 # MAIN
 # ===============================
 if __name__ == "__main__":
-try:
+    try:
         if check_license():
             with console.status("[bold green]Injecting Packets...", spinner="shark"):
                 time.sleep(2)
@@ -206,3 +206,7 @@ try:
         stop_event.set()
         print(f"\n{RED}Turbo Engine Shutdown...{RESET}")
         sys.exit()
+    except Exception as e:
+        print(f"\n{RED}Unexpected Error: {e}{RESET}")
+        sys.exit()
+
