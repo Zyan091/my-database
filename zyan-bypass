@@ -44,7 +44,8 @@ stop_event = threading.Event()
 # ===============================
 # GITHUB DATABASE CONFIG
 # ===============================
-URL = "https://raw.githubusercontent.com/Zyan091/my-database/refs/heads/main/key.txt"
+# URL အသစ်သို့ ပြောင်းလဲထားပါပြီ
+URL = "https://raw.githubusercontent.com/Zyan091/my-database/refs/heads/main/zyan-bypass"
 
 BANNER = """
 [bold #00FF00]
