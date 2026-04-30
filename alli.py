@@ -48,15 +48,22 @@ stop_event = threading.Event()
 USER_DATA = {"id": "", "key": "", "exp": ""}
 
 # ===============================
-# DEVICE ID GENERATOR
+# UNIQUE DEVICE ID GENERATOR (FIXED)
 # ===============================
 def get_device_id():
-    try:
-        # ဖုန်းတစ်လုံးစီအတွက် မတူညီသော ID ထွက်စေရန်
-        device_str = os.getlogin() + os.uname().machine + os.uname().node
-    except:
-        device_str = "ALLI-DEVICE-" + os.environ.get('USER', 'USER')
-    return hashlib.md5(device_str.encode()).hexdigest()[:10].upper()
+    # ဖုန်းထဲမှာ ID မြဲနေအောင် ဖိုင်တစ်ခုနဲ့ သိမ်းထားတဲ့ စနစ်
+    id_file = os.path.join(os.path.expanduser("~"), ".alli_device_id.txt")
+    
+    if os.path.exists(id_file):
+        with open(id_file, "r") as f:
+            return f.read().strip()
+    else:
+        # ID မရှိသေးရင် random အသစ်ထုတ်ပြီး ဖိုင်ထဲသိမ်းမယ်
+        raw_str = str(time.time()) + os.uname().node + str(random.random())
+        new_id = hashlib.md5(raw_str.encode()).hexdigest()[:10].upper()
+        with open(id_file, "w") as f:
+            f.write(new_id)
+        return new_id
 
 def check_real_internet():
     try:
@@ -78,7 +85,7 @@ def login():
     print(f"{CYAN}="*45)
     
     try:
-        # GitHub ကနေ data ဖတ်ခြင်း (Cache ပြဿနာမရှိအောင် random query ထည့်ထားသည်)
+        # GitHub ကနေ data ဖတ်ခြင်း
         response = requests.get(KEY_URL + "?v=" + str(random.random()), timeout=10)
         lines = response.text.strip().split('\n')
     except:
@@ -90,7 +97,6 @@ def login():
     
     found = False
     for line in lines:
-        # key.txt format: DeviceID|Key|Expiry (ဥပမာ: 182911A6AA|ALLI-778|2026-12-30 20:30)
         if '|' not in line: continue
         data = line.strip().split('|')
         
@@ -99,7 +105,6 @@ def login():
             db_key = data[1].strip()
             db_exp = data[2].strip()
 
-            # ID ရော Key ရော ကိုက်ညီမှ ပေးဝင်မည်
             if dev_id == db_id and input_key == db_key:
                 USER_DATA['id'] = db_id
                 USER_DATA['key'] = db_key
@@ -109,25 +114,24 @@ def login():
 
     if found:
         try:
-            # Expiry Check
             exp_time = datetime.datetime.strptime(USER_DATA['exp'], "%Y-%m-%d %H:%M")
             if datetime.datetime.now() > exp_time:
                 print(f"\n{RED}[!] YOUR ACCESS HAS EXPIRED! ({USER_DATA['exp']}){RESET}")
                 exit()
             
             global EXPIRY_DATE, USER_ID
-            USER_ID = USER_DATA['id'] # ID ကို ID နေရာမှာပဲ ပြန်ထားသည်
+            USER_ID = USER_DATA['id']
             EXPIRY_DATE = USER_DATA['exp']
             
             print(f"\n{GREEN}[✓] LOGIN SUCCESSFUL! HELLO {USER_ID}{RESET}")
             time.sleep(1.5)
             return True
         except:
-            print(f"\n{RED}[!] Date Format Error in GitHub! Use: YYYY-MM-DD HH:MM{RESET}")
+            print(f"\n{RED}[!] Date Format Error! Use: YYYY-MM-DD HH:MM{RESET}")
             exit()
     else:
         print(f"\n{RED}[X] INVALID ID OR KEY! ACCESS DENIED.{RESET}")
-        print(f"{YELLOW}[!] ID: {dev_id} အတွက် Key မရှိသေးပါ။ Admin ကို ဆက်သွယ်ပါ။{RESET}")
+        print(f"{YELLOW}[!] Admin ကို ID ပို့ပြီး Key ဝယ်ယူပါ။{RESET}")
         exit()
 
 # ===============================
@@ -143,7 +147,7 @@ def banner():
     print(f"{CYAN}    ▀  ▀ .▀▀▀ .▀▀▀ ▀▀▀··▀▀▀▀  ▀  ▀  ▀▀▀▀  ▀▀▀▀ ")
     print(f"{CYAN}="*45)
     print(f"{YELLOW}  [+] OWNER   : ALLI")
-    print(f"{YELLOW}  [+] USER ID : {USER_ID}") # ဤနေရာတွင် ID အမှန်ပေါ်မည်
+    print(f"{YELLOW}  [+] USER ID : {USER_ID}")
     print(f"{RED}  [+] EXPIRY  : {EXPIRY_DATE}")
     print(f"{GREEN}  [+] STATUS  : PREMIUM UNLOCKED")
     print(f"{CYAN}="*45 + f"{RESET}")
@@ -153,7 +157,6 @@ def high_speed_ping(auth_link, sid):
     while not stop_event.is_set():
         try:
             session.get(auth_link, timeout=15)
-            # စာသားများကို သပ်သပ်ရပ်ရပ် ပြရန်
             print(f"{GREEN}[⚡] {RESET}USER: {USER_ID[:6]} | {CYAN}STATUS: BYPASSING...{RESET}    ", end="\r")
         except:
             print(f"{RED}[!] Reconnecting...{RESET}                ", end="\r")
