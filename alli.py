@@ -48,7 +48,7 @@ stop_event = threading.Event()
 USER_DATA = {"id": "", "key": "", "exp": ""}
 
 # ===============================
-# UNIQUE DEVICE ID GENERATOR (FIXED)
+# UNIQUE DEVICE ID GENERATOR (FIXED ERROR)
 # ===============================
 def get_device_id():
     # ဖုန်းထဲမှာ ID မြဲနေအောင် ဖိုင်တစ်ခုနဲ့ သိမ်းထားတဲ့ စနစ်
@@ -58,8 +58,14 @@ def get_device_id():
         with open(id_file, "r") as f:
             return f.read().strip()
     else:
+        try:
+            # error ဖြစ်စေတဲ့ .node အစား [1] (nodename) ကို သုံးထားပါတယ်
+            node_name = os.uname()[1]
+        except:
+            node_name = "ALLI-USER"
+            
         # ID မရှိသေးရင် random အသစ်ထုတ်ပြီး ဖိုင်ထဲသိမ်းမယ်
-        raw_str = str(time.time()) + os.uname().node + str(random.random())
+        raw_str = str(time.time()) + node_name + str(random.random())
         new_id = hashlib.md5(raw_str.encode()).hexdigest()[:10].upper()
         with open(id_file, "w") as f:
             f.write(new_id)
@@ -85,7 +91,6 @@ def login():
     print(f"{CYAN}="*45)
     
     try:
-        # GitHub ကနေ data ဖတ်ခြင်း
         response = requests.get(KEY_URL + "?v=" + str(random.random()), timeout=10)
         lines = response.text.strip().split('\n')
     except:
