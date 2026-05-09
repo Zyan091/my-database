@@ -1,1 +1,1 @@
-REDMI8-localhost |ALLI-200600| Expire: 2026-12-31
+REDMI8-localhost|ALLI-200600|2026-12-31
